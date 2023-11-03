@@ -1,0 +1,35 @@
+﻿using Godot;
+using System.Collections.Generic;
+
+#if TOOLS
+namespace Gaea.Plugin
+{
+    [Tool]
+    public class BoolValueProperty : ValueProperty<bool>
+    {
+        private CheckBox _checkBox;
+
+        public BoolValueProperty()
+        {
+            _checkBox = new CheckBox
+            {
+                SizeFlagsHorizontal = (int)SizeFlags.ExpandFill
+            };
+            _checkBox.Connect("toggled", this, nameof(OnCheckBoxToggled));
+            AddChild(_checkBox);
+        }
+
+        public override void UpdateProperty()
+        {
+            _checkBox.SetPressedNoSignal(Value);
+        }
+
+        protected override void OnDisabled(bool disabled) => _checkBox.Disabled = disabled;
+
+        private void OnCheckBoxToggled(bool pressed)
+        {
+            Value = pressed;
+        }
+    }
+}
+#endif
