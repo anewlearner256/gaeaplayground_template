@@ -12,8 +12,6 @@
 script = ExtResource( 2 )
 IsPyramidTileSetNeedCache = true
 Is3DTilesNeedCache = true
-DebugCoroutineManager = true
-Debug = true
 
 [node name="InsideEarth" type="MeshInstance" parent="."]
 script = ExtResource( 4 )
