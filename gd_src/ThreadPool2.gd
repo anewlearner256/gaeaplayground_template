@@ -10,8 +10,8 @@ var __task_waits: Array = []
 var read := 0
 var write := 0
 
-#var max_len = OS.get_processor_count()
-var max_len:= 1
+var max_len = OS.get_processor_count()
+#var max_len:= 1
 var __started = false
 var __finished = false
 var __tasks_lock: Mutex = Mutex.new()
