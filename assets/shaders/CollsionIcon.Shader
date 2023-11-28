@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode depth_draw_alpha_prepass,unshaded,cull_back;
+render_mode depth_draw_alpha_prepass,unshaded,cull_back,depth_test_disable;
 uniform sampler2D texture_albedo : hint_albedo;
 uniform float distance_to_center;
 

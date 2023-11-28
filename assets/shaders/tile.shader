@@ -1,9 +1,18 @@
 shader_type spatial;
 // render_mode cull_front;
 render_mode blend_mix,depth_draw_always,cull_back;
-//ambient_light_disabled
 uniform vec2 Origin;
 uniform vec2 Span;
+
+uniform bool useRollerBlind = false;
+uniform vec2 splitline;
+uniform int splitDirection1;
+uniform int splitDirection2;
+uniform int splitDirection3;
+uniform int splitDirection4;
+uniform int splitDirection5;
+uniform int splitDirection6;
+uniform int splitDirection7;
 
 //全局透明
 uniform float transparency;
@@ -12,7 +21,7 @@ uniform float verticalExaggeration = 1.0;
 
 uniform int pixelToHeightMode = 0;
 
-
+uniform float tileTransparency = 1.0;
 //服务图层
 uniform int HasImg1;
 uniform float transparency1=1.0;
@@ -262,6 +271,13 @@ void vertex()
 void fragment()
 {
 	ALBEDO = vec3(1,0,0);
+	float t1 = transparency1;
+	float t2 = transparency2;
+	float t3 = transparency3;
+	float t4 = transparency4;
+	float t5 = transparency5;
+	float t6 = transparency6;
+	float t7 = transparency7;
 
 	if(HasHole == 1)
 	{		
@@ -271,36 +287,184 @@ void fragment()
 			discard;
 		}
 	}
+	
 	vec4 diffuse;
 	if(HasImg1 == 1){
 		vec2 uv = UV * Img1Scale + Img1Offset;
-		diffuse = blendColor(texture(Img1, uv) * transparency1, diffuse);
+		if(useRollerBlind)
+		{
+			if(splitDirection1==1)
+			{
+				if(SCREEN_UV.x > splitline.x)
+				{
+					t1 = 0.0;
+				}
+			}
+			else if(splitDirection1==2)
+			{
+				if(SCREEN_UV.x < splitline.x)
+				{
+					t1 = 0.0;
+				}
+			}
+			diffuse = blendColor(texture(Img1, uv) * t1, diffuse);
+		}
+		else
+		{
+			diffuse = blendColor(texture(Img1, uv) * transparency1, diffuse);
+		}
 		}else{
 		diffuse = vec4(1, 1, 1, 0);
 	}
 	if(HasImg2 == 1) {
 		vec2 uv = UV * Img2Scale + Img2Offset;
-		diffuse = blendColor(texture(Img2, uv) * transparency2, diffuse);
+		if(useRollerBlind)
+		{
+			if(splitDirection2==1)
+			{
+				if(SCREEN_UV.x > splitline.x)
+				{
+					t2 = 0.0;
+				}
+			}
+			else if(splitDirection2==2)
+			{
+				if(SCREEN_UV.x < splitline.x )
+				{
+					t2 = 0.0;
+				}
+			}
+			diffuse = blendColor(texture(Img2, uv) * t2, diffuse);
+		}
+		else
+		{
+			diffuse = blendColor(texture(Img2, uv) * transparency2, diffuse);
+		}
 	}
 	if(HasImg3 == 1) {
 		vec2 uv = UV * Img3Scale + Img3Offset;
-		diffuse = blendColor(texture(Img3, uv) * transparency3, diffuse);
+		if(useRollerBlind)
+		{
+			if(splitDirection3==1)
+			{
+				if(SCREEN_UV.x > splitline.x )
+				{
+					t3 = 0.0;
+				}
+			}
+			else if(splitDirection3==2)
+			{
+				if(SCREEN_UV.x < splitline.x )
+				{
+					t3 = 0.0;
+				}
+			}
+			diffuse = blendColor(texture(Img3, uv) * t3, diffuse);
+		}
+		else
+		{
+			diffuse = blendColor(texture(Img3, uv) * transparency3, diffuse);
+		}
 	}
 	if(HasImg4 == 1) {
 		vec2 uv = UV * Img4Scale + Img4Offset;
-		diffuse = blendColor(texture(Img4, uv) * transparency4, diffuse);
+		if(useRollerBlind)
+		{
+			if(splitDirection4==1)
+			{
+				if(SCREEN_UV.x > splitline.x)
+				{
+					t4 = 0.0;
+				}
+			}
+			else if(splitDirection4==2)
+			{
+				if(SCREEN_UV.x < splitline.x )
+				{
+					t4 = 0.0;
+				}
+			}
+			diffuse = blendColor(texture(Img4, uv) * t4, diffuse);
+		}
+		else
+		{
+			diffuse = blendColor(texture(Img4, uv) * transparency4, diffuse);
+		}
 	}
 	if(HasImg5 == 1) {
 		vec2 uv = UV * Img5Scale + Img5Offset;
-		diffuse = blendColor(texture(Img5, uv) * transparency5, diffuse);
+		if(useRollerBlind)
+		{
+			if(splitDirection5==1)
+			{
+				if(SCREEN_UV.x > splitline.x)
+				{
+					t5 = 0.0;
+				}
+			}
+			else if(splitDirection5==2)
+			{
+				if(SCREEN_UV.x < splitline.x )
+				{
+					t5 = 0.0;
+				}
+			}
+			diffuse = blendColor(texture(Img5, uv) * t5, diffuse);
+		}
+		else
+		{
+			diffuse = blendColor(texture(Img5, uv) * transparency5, diffuse);
+		}
 	}
 	if(HasImg6 == 1) {
 		vec2 uv = UV * Img6Scale + Img6Offset;
-		diffuse = blendColor(texture(Img6, uv) * transparency6, diffuse);
+		if(useRollerBlind)
+		{
+			if(splitDirection6==1)
+			{
+				if(SCREEN_UV.x > splitline.x)
+				{
+					t6 = 0.0;
+				}
+			}
+			else if(splitDirection6==2)
+			{
+				if(SCREEN_UV.x < splitline.x )
+				{
+					t6 = 0.0;
+				}
+			}
+			diffuse = blendColor(texture(Img6, uv) * t6, diffuse);
+		}
+		else
+		{
+			diffuse = blendColor(texture(Img6, uv) * transparency6, diffuse);
+		}
 	}
 	if(HasImg7== 1) {
 		vec2 uv = UV * Img7Scale + Img7Offset;
-		diffuse = blendColor(texture(Img7, uv) * transparency7, diffuse);
+		if(useRollerBlind)
+		{
+			if(splitDirection7==1)
+			{
+				if(SCREEN_UV.x > splitline.x )
+				{
+					t7 = 0.0;
+				}
+			}
+			else if(splitDirection7==2)
+			{
+				if(SCREEN_UV.x < splitline.x )
+				{
+					t7 = 0.0;
+				}
+			}
+			diffuse = blendColor(texture(Img7, uv) * t7, diffuse);
+		}
+		else
+		{
+			diffuse = blendColor(texture(Img7, uv) * transparency7, diffuse);
+		}
 	}
 
 	if(openColor && HasTerrainMap1 == 1 && HasTerrainMap2 == 1 && TerrainMapInterpolationValue != -1f)
@@ -451,11 +615,11 @@ void fragment()
 		}
 	}
 
-	NORMAL = ((vec3(0.5,0.5,1.0) -  diffuse.rgb) * NORMAL.rgb);
 	ALBEDO = diffuse.rgb;
+//	ALPHA = tileTransparency;
 	ROUGHNESS = 0.7;
-	//	METALLIC = 0.5;
-	//	SPECULAR = 0.1;
+	METALLIC = 0.5;
+	SPECULAR = 0.1;
 	
 	if( HasImg7 != 1 && 
 	HasImg6 != 1 && 

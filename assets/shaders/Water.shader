@@ -15,7 +15,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 // For this shader min. GODOT 3.1.1 is required, because 3.1 has a depth buffer bug!
 shader_type 	spatial;
-render_mode 	cull_disabled, diffuse_burley,specular_schlick_ggx, blend_mix;
+render_mode 	cull_front, diffuse_burley,specular_schlick_ggx, blend_mix;
 
 
 // Wave settings:

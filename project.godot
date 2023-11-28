@@ -40,7 +40,7 @@ Main/GenerateVersionPreprocessorDefines=false
 [application]
 
 config/name="Gaea Explorer Demo"
-run/main_scene="res://demos/Empty.tscn"
+run/main_scene="res://demos/WorldTest.tscn"
 config/icon="res://assets/images/gaea.png"
 
 [debug]
@@ -124,9 +124,7 @@ common/enable_pause_aware_picking=true
 
 quality/stencil_buffer/enable=true
 quality/stencil_buffer/enable_shadow_map=true
-quality/shading/force_vertex_shading=true
-quality/shading/force_lambert_over_burley=true
-quality/shading/force_blinn_over_ggx=true
+quality/shading/use_physical_light_attenuation=true
 batching/parameters/batch_buffer_size=65535
 portals/debug/logging=false
 limits/rendering/max_renderable_lights=16

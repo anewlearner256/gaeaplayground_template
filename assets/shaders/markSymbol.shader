@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode depth_draw_alpha_prepass,unshaded,cull_back;
+render_mode depth_draw_alpha_prepass,unshaded,cull_back, ambient_light_disabled, depth_test_disable;
 uniform sampler2D texture_albedo : hint_albedo;
 
 uniform float distance_to_center;
@@ -139,14 +139,14 @@ void vertex() {
 	vec3 v2 = -normalize(world_position + CAMERA_RELATIVE_POS.xyz);
 	float cos0 = dot(v1, v2) / (length(v1) * length(v2));
 
-//	if(dot(v1, v2) < -0.1)
-//	{
-//		isVisable = 1.0;
-//	}
-//	else
-//	{
-//		isVisable = -1.0;
-//	}	
+	if(dot(v1, v2) < -0.1)
+	{
+		isVisable = 1.0;
+	}
+	else
+	{
+		isVisable = -1.0;
+	}	
 	
 	vec3 p3=unproject(world_position,PROJECTION_MATRIX,CAMERA_MATRIX);
 	
