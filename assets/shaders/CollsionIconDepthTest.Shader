@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode depth_draw_alpha_prepass,unshaded,cull_back;
+render_mode depth_draw_alpha_prepass,unshaded,cull_back,depth_test_disable;
 uniform sampler2D texture_albedo : hint_albedo;
 uniform float distance_to_center;
 
@@ -19,7 +19,6 @@ varying vec4 screenposition;
 varying float cnt;
 varying float Color;
 varying float alpha_show; 
-
 
 vec3 XformInv(vec3 p_pos,mat4 camera_matrix){	
 	vec3 v=p_pos-vec3(camera_matrix[3][0],camera_matrix[3][1],camera_matrix[3][2]);
@@ -113,7 +112,7 @@ void vertex() {
 //		cnt = 0.0;
 		
 		float FF = 0.62; // 0.62
-		float TextScale = 0.87;
+		float TextScale = 0.87; // 字体高度存在变小
 		
 		vec2 v; // 取文字
 		if(UV.x == 0.0 && UV.y == 1.0) {
