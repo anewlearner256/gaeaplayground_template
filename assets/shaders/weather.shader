@@ -1,12 +1,25 @@
 shader_type spatial;
+render_mode unshaded;
 
-render_mode cull_disabled, depth_test_disable, unshaded;
+uniform sampler2D screen_texture;
+uniform sampler2D iChannel3;
 
+uniform bool drop_snowy = false;
+uniform bool drop_rain = false;
+uniform bool drop_lightning = false;
+
+uniform float wind_direction : hint_range(-1.5,1.5,0.1) = -0.5; // 风向
+uniform float drop_speed : hint_range(0,100,2) = 10; // 速度
+uniform int count : hint_range(0,100,5) = 50; // 粒子数量
+uniform float lightning_frequency : hint_range(4.0,12.0,0.5) = 8; // 闪电频率
+uniform float lightning_light :  hint_range(0.5,4.0,0.5) = 2; // 闪电亮度
+
+
+uniform bool need_atmosphere = true;
 varying flat mat4 model_view_matrix;
 uniform vec3 cam_pos;
 uniform bool use_shadow = true;
 
-uniform sampler2D screen_texture : hint_albedo;
 uniform sampler2D screenDepth;
 uniform float energy = 20;
 uniform float reflectivity = 1;
@@ -45,6 +58,133 @@ uniform float particles_density_i = 1.0;
 uniform float particles_density_l = 1.0;
 
 varying mat4 modelViewMatrix_inv;
+
+
+
+vec3 Lightning(vec4 fragCoord,vec2 iResolution){
+	vec2 q = fragCoord.xy/iResolution.xy;
+    vec2 p = -1.0+2.0*q;
+	p.x *= iResolution.x/iResolution.y;
+	vec3 origin = vec3(6.0, 3.0 + 4.0, -4.0);
+	vec3 target = vec3( 0.0, 0.8, 1.2 );
+	
+	vec3 cw = normalize( target-origin);
+	vec3 cp = vec3( 0.0, 1.0, 0.0 );
+	vec3 cu = normalize( cross(cw,cp) );
+	vec3 cv = ( cross(cu,cw) );
+	vec3 ray = normalize( p.x*cu + p.y*cv + 2.5*cw );
+	
+	float iTime = TIME * 2.;
+	vec3 col = vec3(0);
+	vec3 lightning_ = vec3(0.0);
+	vec2 res = vec2(0.1);
+	float t = res.x;
+	float m = res.y;
+	
+   	vec3 pos = origin + t*ray;
+	vec3 nor = vec3(0.1);
+	float shiny = 0.0;
+	
+	float f = 1.;
+	col += f * .07;
+	shiny *= f*.25;
+	vec3 lig = normalize( vec3(-0.3, 1.3, -0.5) );
+       float dif = clamp( dot( nor, lig ), 0.0, 1.0 );
+	float sh = 0.4;
+	dif *= sh;
+	
+	vec3 brdf = 1.50*dif*vec3(1.00);
+	
+	float ti = mod(iTime, lightning_frequency); // 此处控制闪电的频率
+	f = 0.0;
+	for (int i = 0; i < 4; i++)
+	{
+		f+=.25;
+		if (i == 2) f-=.1;
+		lightning_ = smoothstep(1.3+f,1.35+f, ti) * smoothstep(1.8+f,1.4+f, ti)*vec3(2.)*sh * lightning_light; // 控制亮度
+		brdf += lightning_;
+		shiny += lightning_.x;
+		shiny = clamp(shiny, 0.0, 1.0);
+	}
+	float pp = clamp( dot( reflect(ray,nor), lig ), 0.0, 1.0 );
+	float spe = sh*pow(max(pp, 0.0),2.0)*shiny;
+
+	col = (col*brdf + spe) * exp(-0.0005*t*t*t*t);
+
+	return vec3( clamp(col,0.0,1.0) );
+}
+
+vec3 Snowy(vec4 fragCoord,vec2 iResolution){
+	vec2 uv = vec2(1.,iResolution.y/iResolution.x)*fragCoord.xy / iResolution.xy;
+	const mat3 p = mat3(vec3(13.323122,23.5112,21.71123),
+	vec3(21.1212,28.7312,11.9312),
+	vec3(21.8112,14.7212,61.3934));
+	
+	//vec3 acc = vec3(col);
+	float dof = 5.*sin(TIME*.1);
+	vec3 col_ = vec3(0);
+	for (int i=0;i<count;i++) 
+	{
+		float fi = float(i);
+		vec2 q = uv*(1.+fi* 0.1);
+		if(wind_direction == 0.) q += vec2(q.y*(0.8 * mod(fi*7.238917,1.)- 0.8*.5),0.5* TIME/(1.+fi*0.1*.03) * drop_speed / 10.0) ; // 无风
+		else q += vec2(q.y*wind_direction,0.5* TIME/(1.+fi*0.1*.03) * drop_speed / 10.0) ; // 有风
+		vec3 n = vec3(floor(q),31.189+fi);
+		vec3 m = floor(n)*.00001 + fract(n);
+		vec3 mp = (31415.9+m)/fract(p*m);
+		vec3 r = fract(mp);
+		vec2 s = abs(mod(q,1.)-.5+.9*r.xy-.45);
+		s += .01*abs(2.*fract(10.*q.yx)-1.); 
+		float d = .6*max(s.x-s.y,s.x+s.y)+max(s.x,s.y)-.01;
+		float edge = .005+.05*min(.5*abs(fi-5.-dof),1.) * 3.; // 调整粒子大下
+		col_ += vec3(smoothstep(edge,-edge,d * 7.0)*(r.x/(1.+.02*fi* 0.1))) * 0.5;
+	}
+	return col_;
+}
+
+vec3 Rain(vec4 fragCoord,vec2 iResolution){
+	float iTime = TIME;
+	vec2 q = fragCoord.xy/iResolution.xy;
+    vec2 p = -1.0+2.0*q;
+	p.x *= iResolution.x/iResolution.y;
+	vec3 vCameraPos = vec3(0.0, 0.0, 9.8);
+	float ang = iTime * .3 + 3.4;
+	float head = pow(abs(sin(ang*8.0)), 1.5) * .15;
+	vCameraPos += vec3(cos(ang) * 2.5, head,  sin(ang) * 8.5);
+    vec2 coord = fragCoord.xy / iResolution.xy;
+	vec3 vCameraIntrest = vec3(-1.0, head, 25.0);
+	vec3 normal;
+	
+	// Do the pixel colours...	
+    vec3 col = vec3(0);
+	
+	float dis = 1.;
+	for (int i = 0; i < 12; i++)
+	{
+		vec3 plane = vCameraPos;
+		
+			float f = pow(dis, .45)+.25;
+
+			vec2 st =  f * (q * vec2(2.5, .17)+vec2(-iTime*.1+q.y*wind_direction, iTime*.16)); // 可以设置方向
+			f = (texture(iChannel3, st * .5, -99.0).x + texture(iChannel3, st*.284, -99.0).y);
+			f = clamp(pow(abs(f)*.75, 10.0) * drop_speed, 0.00, q.y*.4+.05);
+
+			vec3 bri = vec3(.25) * float(count) / 100.;
+			for (int t = 0; t < 11; t++)
+			{
+				vec3 v3 = - plane.xyz;
+				float l = dot(v3, v3);
+				l = max(3.0-(l*l * .02), 0.0);
+				
+			}
+			col += bri*f;
+		
+		dis += 3.5;
+	}
+	return clamp(col, 0.0, 1.0);
+}
+
+
 
 mat4 get_projection_matrix(float fov, float aspect, float near, float far)
 {
@@ -401,7 +541,6 @@ vec4 render_scene(vec3 pos, vec3 dir, vec3 light_dir, sampler2D tex, vec2 uv, ve
 	{
 		float dis = length(piexlPos - cam_pos);
 		if(true)
-//		if(dis < 100000.0)
 		{
 			color.w = max(dis, 0.0);
 
@@ -434,51 +573,15 @@ vec4 render_scene(vec3 pos, vec3 dir, vec3 light_dir, sampler2D tex, vec2 uv, ve
 				color.xyz *= reflectivity;
 			}
 	        // apply the shadow
-//	        color.xyz *= shadow * reflectivity;
-//			color.xyz *=  reflectivity;
-//			color.xyz *= 2.0;
+
 	        // apply skylight
 			if(use_sky_light)
 			{
 	        	color.xyz += clamp(skylight(sample_pos, surface_normal, light_dir, vec3(10.0)) * color.xyz, min_sky_light, max_sky_light);				
 			}
-//	        color.xyz += clamp(skylight(sample_pos, surface_normal, light_dir, vec3(10.0)) * color.xyz, 0.0, 1.0);
-			
+
 		}
-//		else
-//		{
-//			if (0.0 < planet_intersect.y) {
-//				color.w = max(planet_intersect.x, 0.0);
-//
-//		        // sample position, where the pixel is
-//		        vec3 sample_pos = pos + (dir * planet_intersect.x) - PLANET_POS;
-//
-//		        // and the surface normal
-//		        vec3 surface_normal = normalize(sample_pos);
-//
-//		        // get the color of the sphere
-//		        color.xyz = texture(tex, uv).xyz;
-//				color.xyz = mix(pow((color.rgb + vec3(0.055)) * (1.0 / (1.0 + 0.055)),vec3(2.4)),color.rgb * (1.0 / 12.92),lessThan(color.rgb,vec3(0.04045)));
-//		        //color.xyz = backgroungcolor.xyz;
-//		        // get wether this point is shadowed, + how much light scatters towards the camera according to the lommel-seelinger law
-//		        vec3 N = surface_normal;
-//		        vec3 V = -dir;
-//		        vec3 L = light_dir;
-//		        float dotNV = max(1e-6, dot(N, V));
-//		        float dotNL = max(1e-6, dot(N, L));
-//		        float shadow = dotNL / (dotNL + dotNV);
-//				if(shadow < 0.1) //解决地平线上下亮度不一致
-//				{
-//					shadow = 0.1;
-//				}
-//
-//		        // apply the shadow
-//		        color.xyz *= shadow * reflectivity;
-//
-//		        // apply skylight
-//		        color.xyz += clamp(skylight(sample_pos, surface_normal, light_dir, vec3(10.0)) * color.xyz, 0.0, 1.0);
-//			}
-//		}
+
 	}
 	
     
@@ -507,106 +610,77 @@ vec3 depthToWorld(sampler2D depthTexture, vec2 screenUV, mat4 invProjectMatrix, 
 
 
 
-void vertex() {
-  POSITION = vec4(VERTEX, 1.0);
-  modelViewMatrix_inv = inverse(MODELVIEW_MATRIX);
-  model_view_matrix = CAMERA_MATRIX*MODELVIEW_MATRIX;
-}
 
+void vertex()
+{
+	POSITION = vec4(VERTEX, 1.0); // 全屏显示
+	modelViewMatrix_inv = inverse(MODELVIEW_MATRIX);
+  	model_view_matrix = CAMERA_MATRIX*MODELVIEW_MATRIX;
+}
 void fragment() {
-//	ALBEDO = texture(screenTexture, SCREEN_UV).xyz;
+	vec2 iResolution = VIEWPORT_SIZE;
+	vec4 fragCoord = FRAGCOORD;
+	vec3 col = vec3(0);
+	if(drop_lightning) {
+		col += Lightning(fragCoord,iResolution);
+	}
+	if(drop_snowy) {
+		col += Snowy(fragCoord,iResolution);
+	}
+	if(drop_rain) {
+		col += Rain(fragCoord,iResolution) * vec3(240. / 255.,249./225.,255./255.);
+	}
+	if(need_atmosphere)
+	{
+		vec3 RAY_BETA0 = RAY_BETA * ray_factor.xyz;
+    	float depth = texture(DEPTH_TEXTURE, SCREEN_UV).x;
+		//float depth = texture(DEPTH_TEXTURE, SCREEN_UV).x;
+		vec3 ndc = vec3(SCREEN_UV, depth) * 2.0 - 1.0;
+		vec4 view = INV_PROJECTION_MATRIX * vec4(ndc, 1.0);
 
-	vec3 RAY_BETA0 = RAY_BETA * ray_factor.xyz;
-    float depth = texture(DEPTH_TEXTURE, SCREEN_UV).x;
-	//float depth = texture(DEPTH_TEXTURE, SCREEN_UV).x;
-	vec3 ndc = vec3(SCREEN_UV, depth) * 2.0 - 1.0;
-	vec4 view = INV_PROJECTION_MATRIX * vec4(ndc, 1.0);
-//  	view.xyz /= view.w;
-	vec4 world = CAMERA_MATRIX * vec4(view);
-	vec3 world_pos =  world.xyz / world.w + cam_pos;
-//	vec3 world_pos =  depthToWorld(DEPTH_TEXTURE, SCREEN_UV, INV_PROJECTION_MATRIX, CAMERA_MATRIX);
-//	vec3 camera_position = vec3(-2611476.21448862, 10600075.0555241, 6598570.08460869);
-	vec3 camera_position = cam_pos;
-	//vec3 camera_position = getCameraPos(INV_CAMERA_MATRIX);
-	// get the camera vector
-	vec3 camera_vector = normalize(world_pos - cam_pos);
-
-   // vec3 camera_vector = get_camera_vector(iResolution, fragCoord);
-
-
-    // get the light direction
-    // also base this on the mouse position, that way the time of day can be changed with the mouse
-    //vec3 light_dir = normalize(vec3(0.0, cos(-TIME), sin(-TIME))); 
-	vec3 light_dir = sun_dir;
-//    	normalize(vec3(0.0, cos(iMouse.y * -5.0 / iResolution.y), sin(iMouse.y * -5.0 / iResolution.y)));
-
-//	vec3 light_dir = sunDir;
-    // get the scene color and depth, color is in xyz, depth in w
-    // replace this with something better if you are using this shader for something else
-//    vec4 scene = render_scene(camera_position, camera_vector, light_dir, screenTexture, SCREEN_UV);
-	vec4 scene = render_scene(camera_position, camera_vector, light_dir, screen_texture, SCREEN_UV, world_pos);
-//	vec4 scene = render_scene(camera_position, camera_vector, light_dir, screenTexture, SCREEN_UV, world_pos);
-
-    // the color of this pixel
-    vec3 col = vec3(0.0);//scene.xyz;
-
-    // get the atmosphere color
-    col += calculate_scattering(
-    	camera_position,				// the position of the camera
-        camera_vector, 					// the camera vector (ray direction of this pixel)
-        scene.w, 						// max dist, essentially the scene depth
-        scene.xyz,						// scene color, the color of the current pixel being rendered
-        light_dir,						// light direction
-        vec3(energy),						// light intensity, 40 looks nice
-        PLANET_POS,						// position of the planet
-        PLANET_RADIUS,                  // radius of the planet in meters
-        ATMOS_RADIUS,                   // radius of the atmosphere in meters
-        RAY_BETA0,						// Rayleigh scattering coefficient
-        MIE_BETA,                       // Mie scattering coefficient
-        ABSORPTION_BETA,                // Absorbtion coefficient
-        AMBIENT_BETA.xyz,					// ambient scattering, turned off for now. This causes the air to glow a bit when no light reaches it
-        G,                          	// Mie preferred scattering direction
-        HEIGHT_RAY,                     // Rayleigh scale height
-        HEIGHT_MIE,                     // Mie scale height
-        HEIGHT_ABSORPTION,				// the height at which the most absorption happens
-        ABSORPTION_FALLOFF,				// how fast the absorption falls off from the absorption height 
-        PRIMARY_STEPS, 					// steps in the ray direction 
-        LIGHT_STEPS 					// steps in the light direction
-    );
-
-    // apply exposure, removing this makes the brighter colors look ugly
-    // you can play around with removing this
-    col = 1.0 - exp(-col);
-
-//	col = ACESFilm(col);
-    // Output to screen
-//	if(col.x > 1.0)
-//	ALBEDO = vec3(1, 0, 0);
-//	else
-//	if(PLANET_RADIUS + 8000.0< length(world_pos))
-//	{
-//		col = vec3(1, 0.0,0.0);	
-//	}
-
-
-	ALBEDO = col;
-//	ALBEDO = scene.xyz;
-//	ALPHA = 1.0;
-//	ALBEDO = texture(screenDepth, SCREEN_UV).xyz;
-//	vec3 cc = texture(screenTexture, SCREEN_UV).xyz;
-//	ALBEDO.xyz = mix(pow((cc.rgb + vec3(0.055)) * (1.0 / (1.0 + 0.055)),vec3(2.4)),cc.rgb * (1.0 / 12.92),lessThan(cc.rgb,vec3(0.04045)));
-//	ALBEDO = normalize(world_pos);
-//	ALPHA = 0.9;
-	//ALBEDO = texture(screenTexture, SCREEN_UV).xyz;
+		vec4 world = CAMERA_MATRIX * vec4(view);
+		vec3 world_pos =  world.xyz / world.w + cam_pos;
+		vec3 camera_position = cam_pos;
+		// get the camera vector
+		vec3 camera_vector = normalize(world_pos - cam_pos);
+    	// get the light direction
+    	// also base this on the mouse position, that way the time of day can be changed with the mouse
+		vec3 light_dir = sun_dir;
+    	// get the scene color and depth, color is in xyz, depth in w
+    	// replace this with something better if you are using this shader for something else
+		vec4 scene = render_scene(camera_position, camera_vector, light_dir, screen_texture, SCREEN_UV, world_pos);
+    	// get the atmosphere color
+    	col += calculate_scattering(
+    		camera_position,				// the position of the camera
+        	camera_vector, 					// the camera vector (ray direction of this pixel)
+        	scene.w, 						// max dist, essentially the scene depth
+        	scene.xyz,						// scene color, the color of the current pixel being rendered
+        	light_dir,						// light direction
+        	vec3(energy),						// light intensity, 40 looks nice
+        	PLANET_POS,						// position of the planet
+        	PLANET_RADIUS,                  // radius of the planet in meters
+        	ATMOS_RADIUS,                   // radius of the atmosphere in meters
+        	RAY_BETA0,						// Rayleigh scattering coefficient
+        	MIE_BETA,                       // Mie scattering coefficient
+        	ABSORPTION_BETA,                // Absorbtion coefficient
+        	AMBIENT_BETA.xyz,					// ambient scattering, turned off for now. This causes the air to glow a bit when no light reaches it
+        	G,                          	// Mie preferred scattering direction
+        	HEIGHT_RAY,                     // Rayleigh scale height
+        	HEIGHT_MIE,                     // Mie scale height
+        	HEIGHT_ABSORPTION,				// the height at which the most absorption happens
+        	ABSORPTION_FALLOFF,				// how fast the absorption falls off from the absorption height 
+        	PRIMARY_STEPS, 					// steps in the ray direction 
+        	LIGHT_STEPS 					// steps in the light direction
+    	);
+    	// apply exposure, removing this makes the brighter colors look ugly
+    	// you can play around with removing this
+    	col = 1.0 - exp(-col);
+		ALBEDO = col;
+	}
+	else
+	{
+		ALBEDO = texture(SCREEN_TEXTURE, SCREEN_UV).xyz + col;
+	}
 	
 	
-
 }
-
-
-
-
-
-
-
-

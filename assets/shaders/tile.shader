@@ -131,9 +131,14 @@ varying mat4 modelViewMatrix_inv;
 
 vec4 blendColor(vec4 srcColor, vec4 destColor)
 {
+	if(1.0 - srcColor.r <= 0.01&&1.0 - srcColor.g <= 0.01&&1.0 - srcColor.b <= 0.01 && destColor.a!=0.0)
+	{
+		srcColor.a = 0.0;
+	}
 	if(srcColor.a==1.0) {
 		return srcColor;
 	}
+	
 	return srcColor * srcColor.a + destColor * (1.0 - srcColor.a);
 }
 

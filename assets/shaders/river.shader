@@ -21,8 +21,11 @@ uniform float roughness : hint_range(0.0, 1.0) = 0.2;
 uniform float edge_fade : hint_range(0.0, 1.0) = 0.25;
 
 // Albedo
-uniform mat4 albedo_color = mat4(vec4(0.0, 0.15, 0.0, 0.0), vec4(0.8, 0.2, 0.0, 0.0), vec4(1.0, 0.5, 0.0, 0.0), vec4(0.0));
-uniform float albedo_depth : hint_range(0.0, 200.0) = 1.0;
+//uniform mat4 albedo_color = mat4(vec4(0.0, 0.15, 0.0, 0.0), vec4(0.8, 0.2, 0.0, 0.0), vec4(1.0, 0.5, 0.0, 0.0), vec4(0.0));
+uniform vec4 	color_deep : hint_color;						// Color for deep places in the water, medium to dark blue
+uniform vec4 	color_shallow : hint_color = vec4(0.70 , 0.92 , 0.96 , 1.0);		
+
+uniform float albedo_depth : hint_range(0.0, 200.0) = 10.0;
 uniform float albedo_depth_curve = 0.25;
 
 // Transparency
@@ -45,22 +48,30 @@ uniform float foam_steepness : hint_range(0.0, 8.0) = 2.0;
 uniform float foam_smoothness : hint_range(0.0, 1.0) = 0.3;
 
 // Internal uniforms - DO NOT CUSTOMIZE THESE
-uniform float i_lod0_distance : hint_range(5.0, 200.0) = 50.0;
+uniform float i_lod0_distance : hint_range(0.0, 200.0) = 50.0;
 uniform sampler2D i_texture_foam_noise : hint_white;
 uniform sampler2D i_flowmap : hint_normal;
 uniform sampler2D i_distmap : hint_white;
 uniform bool i_valid_flowmap = false;
 uniform int i_uv2_sides = 2;
 
-uniform bool dir_reverse = false;
-
 
 vec3 FlowUVW(vec2 uv_in, vec2 flowVector, vec2 jump, vec3 tiling, float time, bool flowB) {
 	float phaseOffset = flowB ? 0.5 : 0.0;
 	float progress = fract(time + phaseOffset);
 	vec3 uvw;
-	vec2 vecDir = dir_reverse ? vec2(-1) : vec2(1);
-	uvw.xy = uv_in - flowVector * (progress - 0.5) * vecDir;
+
+	uvw.xy = uv_in - flowVector * (progress - 0.5);
+//	if(flowB)
+//	{
+//		uvw.xy = uv_in - flowVector * (progress - 0.5);
+//	}
+//	else
+//	{
+//		uvw.xy = uv_in + 2.0 *  flowVector * (progress - 0.5);
+//	}
+//
+	
 	uvw.xy *= tiling.xy;
 	uvw.xy += phaseOffset;
 	uvw.xy += (time - progress) * jump;
@@ -98,12 +109,12 @@ float lin2srgb(float lin) {
 	return pow(lin, 2.2);
 }
 
-mat4 gradient_lin2srgb(mat4 lin_mat) {
+mat4 gradient_lin2srgb(vec4 lin_mat,vec4 lin_mat2) {
 	mat4 srgb_mat = mat4(
-	vec4(lin2srgb(lin_mat[0].x), lin2srgb(lin_mat[0].y), lin2srgb(lin_mat[0].z), lin2srgb(lin_mat[0].w)),
-	vec4(lin2srgb(lin_mat[1].x), lin2srgb(lin_mat[1].y), lin2srgb(lin_mat[1].z), lin2srgb(lin_mat[1].w)),
-	vec4(0.0),
-	vec4(0.0)
+		vec4(lin2srgb(lin_mat.x), lin2srgb(lin_mat.y), lin2srgb(lin_mat.z), lin2srgb(lin_mat.w)),
+		vec4(lin2srgb(lin_mat2.x), lin2srgb(lin_mat2.y), lin2srgb(lin_mat2.z), lin2srgb(lin_mat2.w)),
+		vec4(0.0),
+		vec4(0.0)
 	);
 	return srgb_mat;
 }
@@ -112,7 +123,7 @@ void fragment() {
 	// Sample the UV2 textures. To avoid issues with the UV2 seams, margins
 	// are left on the textures, so the UV2 needs to be rescaled to cut off
 	// the margins.
-	vec2 custom_UV = (UV2 + 1.0 / float(i_uv2_sides)) * (float(i_uv2_sides) / float(i_uv2_sides + 2));
+	vec2 custom_UV = (UV + 1.0 / float(i_uv2_sides)) * (float(i_uv2_sides) / float(i_uv2_sides + 2));
 	vec4 flow_foam_noise = textureLod(i_flowmap, custom_UV, 0.0);
 	vec2 dist_pressure = textureLod(i_distmap, custom_UV, 0.0).xy;
 	
@@ -131,39 +142,44 @@ void fragment() {
 		pressure_map = 0.5;
 		foam_mask = 0.0;
 	}
-	
+
 	flow = (flow - 0.5) * 2.0; // unpack the flow vectors
-	
+
 	// Calculate the steepness map
 	vec3 flow_viewspace = flow.x * TANGENT + flow.y * BINORMAL;
 	vec3 up_viewspace = (INV_CAMERA_MATRIX * vec4(0.0, 1.0, 0.0, 0.0)).xyz;
 	float steepness_map = max(0.0, dot(flow_viewspace, up_viewspace)) * 4.0;
-	
+
 	float flow_force = min(flow_base + steepness_map * flow_steepness + distance_map * flow_distance + pressure_map * flow_pressure, flow_max);
 	flow *= flow_force;
-	
+
 	vec2 jump1 = vec2(0.24, 0.2083333);
 	vec2 jump2 = vec2(0.20, 0.25);
 	vec2 jump3 = vec2(0.22, 0.27);
-	//	float time = TIME * flow_speed + flow_foam_noise.a;
-	float time = (TIME + COLOR.r)*flow_speed + flow_foam_noise.a;
+	float time = (TIME) * flow_speed * 0.1 + flow_foam_noise.a;
+//float time = TIME * flow_speed * 0.1 + s.a;
 	vec3 flow_uvA = FlowUVW(UV, flow, jump1, uv_scale, time, false);
 	vec3 flow_uvB = FlowUVW(UV, flow, jump1, uv_scale, time, true);
 	vec3 flowx2_uvA = FlowUVW(UV, flow, jump2, uv_scale * 2.0, time, false);
 	vec3 flowx2_uvB = FlowUVW(UV, flow, jump2, uv_scale * 2.0, time, true);
-	
 	// Level 1 Water
-	vec3 water_a = vec3(texture(normal_bump_texture, flow_uvA.xy).rg,0.0);
-	vec3 water_b = vec3(texture(normal_bump_texture, flow_uvB.xy).rg,0.0);
+	
+	vec2 flow_uvA2 = vec2(UV.x * uv_scale.x + TIME * 0.1 * flow_speed * 4.0, UV.y * uv_scale.y);
+	vec2 flow_uvB2 = vec2(UV.x * uv_scale.x + TIME * 0.1 * flow_speed * 8.0, UV.y * uv_scale.y);
+	
+	
+	vec3 water_a = texture(normal_bump_texture, flow_uvA2.xy).rgb;
+	vec3 water_b = texture(normal_bump_texture, flow_uvB2.xy).rgb;
 	vec3 water = water_a * flow_uvA.z + water_b * flow_uvB.z;
+//	vec3 water = (water_a + water_b);
 
 	vec2 water_norFBM = water.rg;
 	float water_foamFBM = water.b;
 
 	// Level 2 Water, only add in if closer than lod 0 distance
 	if (-VERTEX.z < i_lod0_distance) {
-		vec3 waterx2_a = vec3(texture(normal_bump_texture, flowx2_uvA.xy).rg,0.0);
-		vec3 waterx2_b = vec3(texture(normal_bump_texture, flowx2_uvB.xy, 0.0).rg,0.0);
+		vec3 waterx2_a = texture(normal_bump_texture, flowx2_uvA.xy).rgb;
+		vec3 waterx2_b = texture(normal_bump_texture, flowx2_uvB.xy, 0.0).rgb;
 		vec3 waterx2 = waterx2_a * flowx2_uvA.z + waterx2_b * flowx2_uvB.z;
 
 		water_norFBM *= 0.65;
@@ -188,15 +204,16 @@ void fragment() {
 	
 	float alb_t = clamp(water_depth / albedo_depth, 0.0, 1.0);
 	alb_t = ease(alb_t, albedo_depth_curve);
-	SPECULAR = 0.25; // Supposedly clear water has approximately a 0.25 specular value
+	SPECULAR = 0.2; // Supposedly clear water has approximately a 0.25 specular value
 	ROUGHNESS = roughness;
-	NORMALMAP = vec3(water_norFBM, 0);
+	NORMALMAP = vec3(water_norFBM, 0) * 1.0;
+//	NORMALMAP = -water;
 	NORMALMAP_DEPTH = normal_scale;
 
 	
 	// Refraction - has to be done after normal is set
 	vec3 unpacted_normals = NORMALMAP * 2.0 - 1.0;
-	//vec3 ref_normal = normalize( mix(NORMAL, TANGENT * unpacted_normals.x + BINORMAL * unpacted_normals.y + NORMAL, NORMALMAP_DEPTH) );
+//	vec3 ref_normal = normalize( mix(NORMAL, TANGENT * unpacted_normals.x + BINORMAL * unpacted_normals.y + NORMAL, NORMALMAP_DEPTH) );
 	vec3 ref_normal = normalize(TANGENT * unpacted_normals.x + BINORMAL * unpacted_normals.y) * NORMALMAP_DEPTH * .1;
 	vec2 ref_ofs = SCREEN_UV - ref_normal.xy * transparency_refraction;
 	float clar_t = clamp(water_depth / transparency_clarity, 0.0, 1.0);
@@ -218,7 +235,8 @@ void fragment() {
 		alb_t = clamp(water_depth2 / albedo_depth, 0.0, 1.0);
 		alb_t = ease(alb_t, albedo_depth_curve);
 	}
-	mat4 albedo_color_srgb = gradient_lin2srgb(albedo_color);
+	
+	mat4 albedo_color_srgb = gradient_lin2srgb(color_deep,color_shallow);
 	vec3 albedo_color_near = vec3(albedo_color_srgb[0].x, albedo_color_srgb[0].y, albedo_color_srgb[0].z);
 	vec3 albedo_color_far = vec3(albedo_color_srgb[1].x, albedo_color_srgb[1].y, albedo_color_srgb[1].z);
 	vec3 alb_mix = mix(albedo_color_near.rgb, albedo_color_far.rgb, alb_t);

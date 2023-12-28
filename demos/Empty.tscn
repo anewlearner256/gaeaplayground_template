@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=2]
+[gd_scene load_steps=14 format=2]
 
 [ext_resource path="res://proxy/Sky_Proxy.cs" type="Script" id=1]
 [ext_resource path="res://proxy/World_Proxy.cs" type="Script" id=2]
@@ -7,17 +7,70 @@
 [ext_resource path="res://proxy/Cloud_Proxy.cs" type="Script" id=5]
 [ext_resource path="res://proxy/Sun_Proxy.cs" type="Script" id=6]
 [ext_resource path="res://proxy/DebugDraw_Proxy.cs" type="Script" id=7]
+[ext_resource path="res://proxy/PostProcessingCamera_Proxy.cs" type="Script" id=8]
+[ext_resource path="res://proxy/WeatherManager_Proxy.cs" type="Script" id=9]
+[ext_resource path="res://assets/images/rain.png" type="Texture" id=10]
+[ext_resource path="res://assets/shaders/weather.shader" type="Shader" id=11]
+
+[sub_resource type="QuadMesh" id=1]
+size = Vector2( 2, 2 )
+
+[sub_resource type="ShaderMaterial" id=2]
+shader = ExtResource( 11 )
+shader_param/drop_snowy = false
+shader_param/drop_rain = false
+shader_param/drop_lightning = false
+shader_param/wind_direction = -0.5
+shader_param/drop_speed = 10.0
+shader_param/count = 50
+shader_param/lightning_frequency = 8.0
+shader_param/lightning_light = 2.0
+shader_param/need_atmosphere = true
+shader_param/cam_pos = null
+shader_param/use_shadow = true
+shader_param/energy = 10.0
+shader_param/reflectivity = 1.0
+shader_param/use_sky_light = false
+shader_param/min_sky_light = 0.0
+shader_param/max_sky_light = 1.0
+shader_param/sun_dir = Vector3( 0, 0, 1 )
+shader_param/PLANET_POS = Vector3( 0, 0, 0 )
+shader_param/PLANET_RADIUS = 6.37814e+06
+shader_param/ATMOS_RADIUS = 6.47814e+06
+shader_param/height = 30000.0
+shader_param/RAY_BETA = Vector3( 5.5e-06, 1.3e-05, 2.24e-05 )
+shader_param/ray_factor = Color( 0.47451, 0.92549, 0.917647, 1 )
+shader_param/MIE_BETA = Vector3( 2.1e-05, 2.1e-05, 2.1e-05 )
+shader_param/mie_factor = 0.188
+shader_param/AMBIENT_BETA = Color( 0, 0, 0, 1 )
+shader_param/ABSORPTION_BETA = Vector3( 2.04e-05, 4.97e-05, 1.95e-06 )
+shader_param/absorption_factor = Plane( 1, 1, 1, 1 )
+shader_param/G = 0.97
+shader_param/HEIGHT_RAY = 8000.0
+shader_param/HEIGHT_MIE = 1200.0
+shader_param/HEIGHT_ABSORPTION = 30000.0
+shader_param/ABSORPTION_FALLOFF = 4000.0
+shader_param/PRIMARY_STEPS = 16
+shader_param/LIGHT_STEPS = 4
+shader_param/particles_density_i = 1.0
+shader_param/particles_density_l = 1.0
+shader_param/iChannel3 = ExtResource( 10 )
 
 [node name="World" type="Spatial"]
 script = ExtResource( 2 )
-IsPyramidTileSetNeedCache = true
-Is3DTilesNeedCache = true
 
 [node name="InsideEarth" type="MeshInstance" parent="."]
 script = ExtResource( 4 )
 
 [node name="Camera" type="Camera" parent="."]
 script = ExtResource( 3 )
+
+[node name="FullScreenQuad" type="MeshInstance" parent="Camera"]
+layers = 131072
+mesh = SubResource( 1 )
+material/0 = null
+script = ExtResource( 9 )
+WeatherShader = SubResource( 2 )
 
 [node name="Sun" type="DirectionalLight" parent="."]
 script = ExtResource( 6 )
@@ -30,3 +83,26 @@ script = ExtResource( 5 )
 
 [node name="DebugDraw" type="Node" parent="."]
 script = ExtResource( 7 )
+
+[node name="ViewportContainer" type="ViewportContainer" parent="."]
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 2.0
+anchor_bottom = 2.0
+margin_right = 40.0
+margin_bottom = 40.0
+stretch = true
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="Viewport" type="Viewport" parent="ViewportContainer"]
+size = Vector2( 1064, 640 )
+handle_input_locally = false
+msaa = 2
+render_target_update_mode = 3
+shadow_atlas_size = 2048
+
+[node name="Camera" type="Camera" parent="ViewportContainer/Viewport"]
+cull_mask = 917503
+script = ExtResource( 8 )

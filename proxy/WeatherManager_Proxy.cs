@@ -5,4 +5,4 @@
 using Godot;
 using Gaea;
 using Gaea.Scene;
-public class SplitTool_Proxy : SplitTool { }
+public class WeatherManager_Proxy : WeatherManager { }

@@ -40,7 +40,7 @@ Main/GenerateVersionPreprocessorDefines=false
 [application]
 
 config/name="Gaea Explorer Demo"
-run/main_scene="res://demos/WorldTest.tscn"
+run/main_scene="res://demos/Empty.tscn"
 config/icon="res://assets/images/gaea.png"
 
 [debug]
