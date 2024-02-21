@@ -18,4 +18,5 @@ fog_depth_begin = 0.0
 fog_depth_end = 4000.0
 fog_depth_curve = 0.933039
 fog_transmit_enabled = true
+tonemap_mode = 3
 glow_enabled = true

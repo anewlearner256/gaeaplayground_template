@@ -56,7 +56,7 @@ window/handheld/orientation="sensor"
 
 [editor_plugins]
 
-enabled=PoolStringArray( "res://addons/Core/plugin.cfg" )
+enabled=PoolStringArray(  )
 
 [global]
 

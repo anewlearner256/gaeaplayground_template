@@ -1,0 +1,40 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=2]
+
+[ext_resource path="res://assets/shaders/oceantoy.shader" type="Shader" id=1]
+
+[resource]
+shader = ExtResource( 1 )
+shader_param/radius = null
+shader_param/radiusA = null
+shader_param/radiusB = null
+shader_param/radiusC = null
+shader_param/distFactor = 1.0
+shader_param/cameraToOcean = null
+shader_param/oceanCameraPos = null
+shader_param/horizon1 = null
+shader_param/horizon2 = null
+shader_param/heightOffset = 0.0
+shader_param/sun_dir = Vector3( 0, 0, 1 )
+shader_param/reflectivity = 1.0
+shader_param/hdrExposure = 0.4
+shader_param/PLANET_RADIUS = 6.37e+06
+shader_param/ATMOS_RADIUS = 6.47814e+06
+shader_param/SUN_INTENSITY = 100.0
+shader_param/normalMax = 0.0
+shader_param/distanceMax = 40000.0
+shader_param/distanceOffset = 100.0
+shader_param/NYQUIST_MIN = 0.5
+shader_param/NYQUIST_MAX = 1.25
+shader_param/SEA_HEIGHT = 0.5
+shader_param/SEA_CHOPPY = 3.0
+shader_param/SEA_SPEED = 1.9
+shader_param/SEA_FREQ = 0.24
+shader_param/SEA_BASE = Color( 0.184314, 0.341176, 0.498039, 1 )
+shader_param/SEA_WATER_COLOR = Color( 0.0784314, 0.164706, 0.501961, 1 )
+shader_param/k1 = 2.951
+shader_param/k2 = 2.16
+shader_param/DRAG_MULT = 0.28
+shader_param/WATER_DEPTH = 0.5
+shader_param/CAMERA_HEIGHT = 1.5
+shader_param/ITERATIONS_RAYMARCH = 12
+shader_param/ITERATIONS_NORMAL = 40
