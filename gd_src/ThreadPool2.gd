@@ -11,7 +11,7 @@ var read := 0
 var write := 0
 
 var max_len = OS.get_processor_count()
-#var max_len:= 1
+#var max_len:= 4
 var __started = false
 var __finished = false
 var __tasks_lock: Mutex = Mutex.new()
@@ -68,11 +68,12 @@ func _do_texture_worker(path:String,buffer:PoolByteArray):
 		return tex
 
 # 读取Gltf模型任务
-func _do_gltf_worker(buffer:PoolByteArray,uselight:bool):
+func _do_gltf_worker(buffer:PoolByteArray,uselight:bool,recalculateNormals:bool):
 	var _doc = GLTFDocument.new()
 	var _state = GLTFState.new()
 	_state.use_in_3dtile = true
 	_state.use_light = uselight
+	_state.recalculate_normals = recalculateNormals
 	var err = _doc.append_from_buffer(buffer, "", _state, 0)
 	if err != OK:
 		return null

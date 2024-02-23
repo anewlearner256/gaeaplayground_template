@@ -81,11 +81,12 @@ class Worker:
 		else:
 			return VisualServer.texture_create_from_image(img, Texture.FLAG_FILTER)
 			
-	func _do_gltf_worker(buffer:PoolByteArray,uselight:bool):
+	func _do_gltf_worker(buffer:PoolByteArray,uselight:bool, recalculateNormals:bool):
 		var _doc = GLTFDocument.new()
 		var _state = GLTFState.new()
 		_state.use_in_3dtile = true
 		_state.use_light = uselight
+		_state.recalculate_normals = recalculateNormals
 		var err = _doc.append_from_buffer(buffer, "", _state, 0)
 		if err != OK:
 			return null
