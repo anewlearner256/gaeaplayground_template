@@ -6,7 +6,7 @@ logs
 .idea
 .import
 demos/demo
-*.import
+
 *.md5
 node_modules
 *.xml
