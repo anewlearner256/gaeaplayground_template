@@ -1,11 +1,9 @@
-[gd_resource type="ShaderMaterial" load_steps=6 format=2]
+[gd_resource type="ShaderMaterial" load_steps=5 format=2]
 
 [ext_resource path="res://assets/shaders/Water.shader" type="Shader" id=1]
 [ext_resource path="res://assets/images/water/Water_UV.png" type="Texture" id=2]
-[ext_resource path="res://assets/images/water/Water_N_B.png" type="Texture" id=3]
 [ext_resource path="res://assets/images/water/Water_N_B.png" type="Texture" id=4]
 [ext_resource path="res://assets/images/water/Foam.png" type="Texture" id=5]
-
 
 [resource]
 shader = ExtResource( 1 )
@@ -29,5 +27,5 @@ shader_param/roughness = 0.605
 shader_param/normalmap_depth = 1.149
 shader_param/uv_sampler = ExtResource( 2 )
 shader_param/normalmap_a_sampler = ExtResource( 4 )
-shader_param/normalmap_b_sampler = ExtResource( 3 )
+shader_param/normalmap_b_sampler = ExtResource( 4 )
 shader_param/foam_sampler = ExtResource( 5 )
