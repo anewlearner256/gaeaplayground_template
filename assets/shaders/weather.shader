@@ -4,18 +4,18 @@ render_mode unshaded;
 uniform sampler2D screen_texture;
 uniform sampler2D iChannel3;
 
-uniform bool drop_snowy = false;
-uniform bool drop_rain = false;
-uniform bool drop_lightning = false;
+uniform bool snowy = false;
+uniform bool rain = false;
+uniform bool flash = false;
 
 uniform float wind_direction : hint_range(-1.5,1.5,0.1) = -0.5; // 风向
-uniform float drop_speed : hint_range(0,100,2) = 10; // 速度
+uniform float speed : hint_range(0,100,2) = 10; // 速度
 uniform int count : hint_range(0,100,5) = 50; // 粒子数量
-uniform float lightning_frequency : hint_range(4.0,12.0,0.5) = 8; // 闪电频率
-uniform float lightning_light :  hint_range(0.5,4.0,0.5) = 2; // 闪电亮度
+uniform float flash_frequency : hint_range(4.0,12.0,0.5) = 8; // 闪电频率
+uniform float flash_strength :  hint_range(0.5,4.0,0.5) = 2; // 闪电亮度
 
 
-uniform bool need_atmosphere = true;
+uniform bool need_atmosphere = false;
 varying flat mat4 model_view_matrix;
 uniform vec3 cam_pos;
 uniform bool use_shadow = true;
@@ -61,7 +61,7 @@ varying mat4 modelViewMatrix_inv;
 
 
 
-vec3 Lightning(vec4 fragCoord,vec2 iResolution){
+vec3 Flash(vec4 fragCoord,vec2 iResolution){
 	vec2 q = fragCoord.xy/iResolution.xy;
     vec2 p = -1.0+2.0*q;
 	p.x *= iResolution.x/iResolution.y;
@@ -76,7 +76,7 @@ vec3 Lightning(vec4 fragCoord,vec2 iResolution){
 	
 	float iTime = TIME * 2.;
 	vec3 col = vec3(0);
-	vec3 lightning_ = vec3(0.0);
+	vec3 flash_ = vec3(0.0);
 	vec2 res = vec2(0.1);
 	float t = res.x;
 	float m = res.y;
@@ -95,15 +95,15 @@ vec3 Lightning(vec4 fragCoord,vec2 iResolution){
 	
 	vec3 brdf = 1.50*dif*vec3(1.00);
 	
-	float ti = mod(iTime, lightning_frequency); // 此处控制闪电的频率
+	float ti = mod(iTime, flash_frequency); // 此处控制闪电的频率
 	f = 0.0;
 	for (int i = 0; i < 4; i++)
 	{
 		f+=.25;
 		if (i == 2) f-=.1;
-		lightning_ = smoothstep(1.3+f,1.35+f, ti) * smoothstep(1.8+f,1.4+f, ti)*vec3(2.)*sh * lightning_light; // 控制亮度
-		brdf += lightning_;
-		shiny += lightning_.x;
+		flash_ = smoothstep(1.3+f,1.35+f, ti) * smoothstep(1.8+f,1.4+f, ti)*vec3(2.)*sh * flash_strength; // 控制亮度
+		brdf += flash_;
+		shiny += flash_.x;
 		shiny = clamp(shiny, 0.0, 1.0);
 	}
 	float pp = clamp( dot( reflect(ray,nor), lig ), 0.0, 1.0 );
@@ -127,8 +127,8 @@ vec3 Snowy(vec4 fragCoord,vec2 iResolution){
 	{
 		float fi = float(i);
 		vec2 q = uv*(1.+fi* 0.1);
-		if(wind_direction == 0.) q += vec2(q.y*(0.8 * mod(fi*7.238917,1.)- 0.8*.5),0.5* TIME/(1.+fi*0.1*.03) * drop_speed / 10.0) ; // 无风
-		else q += vec2(q.y*wind_direction,0.5* TIME/(1.+fi*0.1*.03) * drop_speed / 10.0) ; // 有风
+		if(wind_direction == 0.) q += vec2(q.y*(0.8 * mod(fi*7.238917,1.)- 0.8*.5),0.5* TIME/(1.+fi*0.1*.03) * speed / 10.0) ; // 无风
+		else q += vec2(q.y*wind_direction,0.5* TIME/(1.+fi*0.1*.03) * speed / 10.0) ; // 有风
 		vec3 n = vec3(floor(q),31.189+fi);
 		vec3 m = floor(n)*.00001 + fract(n);
 		vec3 mp = (31415.9+m)/fract(p*m);
@@ -167,7 +167,7 @@ vec3 Rain(vec4 fragCoord,vec2 iResolution){
 
 			vec2 st =  f * (q * vec2(2.5, .17)+vec2(-iTime*.1+q.y*wind_direction, iTime*.16)); // 可以设置方向
 			f = (texture(iChannel3, st * .5, -99.0).x + texture(iChannel3, st*.284, -99.0).y);
-			f = clamp(pow(abs(f)*.75, 10.0) * drop_speed, 0.00, q.y*.4+.05);
+			f = clamp(pow(abs(f)*.75, 10.0) * speed, 0.00, q.y*.4+.05);
 
 			vec3 bri = vec3(.25) * float(count) / 100.;
 			for (int t = 0; t < 11; t++)
@@ -621,13 +621,13 @@ void fragment() {
 	vec2 iResolution = VIEWPORT_SIZE;
 	vec4 fragCoord = FRAGCOORD;
 	vec3 col = vec3(0);
-	if(drop_lightning) {
-		col += Lightning(fragCoord,iResolution);
+	if(flash) {
+		col += Flash(fragCoord,iResolution);
 	}
-	if(drop_snowy) {
+	if(snowy) {
 		col += Snowy(fragCoord,iResolution);
 	}
-	if(drop_rain) {
+	if(rain) {
 		col += Rain(fragCoord,iResolution) * vec3(240. / 255.,249./225.,255./255.);
 	}
 	if(need_atmosphere)

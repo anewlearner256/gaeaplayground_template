@@ -74,8 +74,8 @@ uniform float SEA_SPEED = 1.9;
 uniform float SEA_FREQ = 0.24;
 uniform vec4 SEA_BASE :hint_color = vec4(0.11,0.19,0.22,1.0);
 uniform vec4 SEA_WATER_COLOR :hint_color = vec4(0.55,0.9,0.7, 1.0);
-uniform float k1 = 1.0;
-uniform float k2 = 1.0;
+uniform float k1 = 2.951;
+uniform float k2 = 2.16;
 //#define SEA_TIME (iTime * SEA_SPEED)
 
 //Matrix to permute the water surface into a complex, realistic form

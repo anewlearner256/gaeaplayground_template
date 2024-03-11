@@ -1,6 +1,7 @@
 shader_type spatial;
 render_mode depth_draw_alpha_prepass,unshaded,cull_back;
 uniform sampler2D texture_albedo : hint_albedo;
+uniform sampler2D icon_texture_albedo : hint_albedo;
 uniform float distance_to_center;
 
 
@@ -10,6 +11,8 @@ uniform float icon_size;
 uniform float alpha;
 uniform vec4 hoverColor;
 uniform vec4 hitColor;
+uniform float boxsize;
+uniform float chartexturesize;
 
 varying float visible;
 varying float col;
@@ -19,7 +22,6 @@ varying vec4 screenposition;
 varying float cnt;
 varying float Color;
 varying float alpha_show; 
-
 
 vec3 XformInv(vec3 p_pos,mat4 camera_matrix){	
 	vec3 v=p_pos-vec3(camera_matrix[3][0],camera_matrix[3][1],camera_matrix[3][2]);
@@ -81,92 +83,89 @@ void vertex() {
 	}
 	
 	vec2 res;
-	float kk = 32.0;
 	
-	float Box = 4096.0;
-	
-	visible = INSTANCE_CUSTOM.x;
 	res.x=(p3.x * 0.5 + 0.5) * VIEWPORT_SIZE.x;
 	res.y=(-p3.y * 0.5 + 0.5) * VIEWPORT_SIZE.y;
-	Color = float(int(visible * 10.0) % 10); // 颜色显示
-		
+	
+	cnt = INSTANCE_CUSTOM.x / 10.;
+	
+	if(INSTANCE_CUSTOM.x == 0.) {
+		visible = 0.0;
+		return;
+	}
+	
 	col = INSTANCE_CUSTOM.y;
 	alpha_show = float(int(col * 10.0) % 10); // 判断是否需要淡入淡出 1出现 2消失
-	col = float(int(col));
-
+	float all_row = float(int(col) % 100);
+	col = float(int(col) / 100);
+	
+	row = INSTANCE_CUSTOM.z;
+	visible = float(int(row * 10.) % 10);
+	float cur_row = float(int(row) % 100) + 1.;
+	row = float(int(row) / 100);
+	
+	float word_space = float(int(INSTANCE_CUSTOM.w)) / 100.0;
+	Color = float(int(INSTANCE_CUSTOM.w * 10.) % 10);
+		
 	if(Color == 2.0) {
 		scale += 0.2f;
 	}
 	
 	if(check_test == 1)
 	{
-		//col = INSTANCE_CUSTOM.y;
-		row = INSTANCE_CUSTOM.z;
-		
-		float all_row = INSTANCE_CUSTOM.w;
-		float cur_row = float(int(all_row)); // 整数位
-		all_row = float(int(all_row * 10.0) % 10); // 小数位
-		
-		cnt = float(int(row * 10.0) % 10); // 取出小数位
-		row = float(int(row));
-
-//		cnt = 0.0;
-		
-		float FF = 0.62; // 0.62
-		float TextScale = 0.87;
-		
 		vec2 v; // 取文字
 		if(UV.x == 0.0 && UV.y == 1.0) {
-			v.x = (col - 1.0) * kk / Box;
-			v.y = (row) * kk / Box;
+			v.x = (col - 1.0) * boxsize / chartexturesize;
+			v.y = (row) * boxsize / chartexturesize;
 		}
 		else if(UV.x == 0.0 && UV.y == 0.0) {
-			v.x = (col+ cnt * FF) * kk / Box;// + 1.0  + cnt * FF
-			v.y = (row) * kk / Box;
+			v.x = (col) * boxsize / chartexturesize;
+			v.y = (row) * boxsize / chartexturesize;
 		}
 		else if(UV.x == 1.0 && UV.y == 0.0){
-			v.x = (col + cnt * FF) * kk / Box;//+ 1.0  + cnt * FF
-			v.y = (row + 1.0) * kk / Box;
+			v.x = (col) * boxsize / chartexturesize;
+			v.y = (row + 1.0) * boxsize / chartexturesize;
 		}
 		else if(UV.x == 1.0 && UV.y == 1.0) {
-			v.x = (col - 1.0) * kk / Box;
-			v.y = (row + 1.0) * kk / Box;
+			v.x = (col - 1.0) * boxsize / chartexturesize;
+			v.y = (row + 1.0) * boxsize / chartexturesize;
 		}
-		
 		base = v;
 		
-		visible = float(int(visible));
 		
 		if(visible == 1.0) {
-			res.y -= icon_size / 2.0;
-			res.y -= (all_row - cur_row - 0.4) * test_size * scale * TextScale;
+			res.y -= (icon_size + test_size * 0.3) * scale ;
+			res.y -= (all_row - cur_row) * test_size * scale;
+			res.x -= (cnt / 2.0 - word_space) * scale;
 		}
 		else if(visible == 2.0){
-			res.x += icon_size / 2.0 + test_size * (cnt * FF + 1.0) / 2.0;
-			res.y += (cur_row - (all_row / 2.0 - 0.5)) * test_size * scale * TextScale;
-			
+			res.x += icon_size * scale;
+			res.x += word_space * scale;
+			res.y += (cur_row - (all_row / 2.0)) * test_size * scale - test_size / 2.0 * scale;
 		} 
 		else if(visible == 3.0) {
-			res.y += icon_size / 2.0;
-			res.y += (cur_row + 0.5) * test_size * scale * TextScale;
+			res.y += icon_size * scale;
+			res.y += (cur_row - 1.0) * test_size * scale;
+			res.x -= (cnt / 2.0 - word_space) * scale;
 		}
 		else if(visible == 4.0){
-			res.x -= icon_size / 2.0 + test_size * (cnt * FF + 1.0) / 2.0;
-			res.y += (cur_row - (all_row / 2.0 - 0.5)) * test_size * scale * TextScale;
+			res.x -= icon_size * scale;
+			res.x -= (cnt - word_space) * scale;
+			res.y += (cur_row - (all_row / 2.0)) * test_size * scale - test_size / 2.0 * scale;
 		}
 		
 		if((UV.x == 0.0 && UV.y == 1.0) || (UV.x == 1.0 && UV.y == 1.0)) {
-			res.x += (-0.5 * test_size * scale) * (cnt * FF + 1.0); // 设置X轴方向上的宽度
+			res.x += (-0.5 * test_size * scale); // 设置X轴方向上的宽度
 		}
 		else {
-			res.x += (0.5 * test_size * scale) * (cnt * FF + 1.0);
+			res.x += (0.5 * test_size * scale);
 		}
 		
 		if((UV.x == 0.0 && UV.y == 1.0) || (UV.x == 0.0 && UV.y == 0.0)) {
-			res.y += (-0.5 * test_size * scale);// * (cnt * FF + 1.0);
+			res.y += (-0.5 * test_size * scale);
 		}
 		else {
-			res.y += 0.5 * test_size * scale;// * (cnt * FF + 1.0);
+			res.y += 0.5 * test_size * scale;
 		}
 		
 	}
@@ -175,7 +174,7 @@ void vertex() {
 			res.x += (-0.5 * icon_size * scale); // 设置X轴方向上的宽度
 		}
 		else {
-			res.x += 0.5 * icon_size * scale ;
+			res.x += 0.5 * icon_size * scale;
 		}
 		
 		if((UV.x == 0.0 && UV.y == 1.0) || (UV.x == 0.0 && UV.y == 0.0)) {
@@ -187,8 +186,8 @@ void vertex() {
 
 		vec2 tempUV = UV;
 		
-		UV.x =  - (tempUV.y - 0.5) * sin(3.14 / 2.0) + 0.5;
-		UV.y = (tempUV.x - 0.5) * sin(3.14 / 2.0) + 0.5;
+		UV.x =  - (tempUV.y - 0.5) * sin(3.1415926 / 2.0) + 0.5;
+		UV.y = (tempUV.x - 0.5) * sin(3.1415926 / 2.0) + 0.5;
 		base = UV;
 	}
 	
@@ -219,6 +218,8 @@ void fragment() {
 		discard;
 	}
 	vec4 albedo_tex = texture(texture_albedo,base);
+	if(Color == 2.0 && check_test == 0) albedo_tex = texture(icon_texture_albedo,base);
+	
 	ALBEDO = albedo_tex.rgb;
 	ALPHA=albedo_tex.a;
 //	if(alpha_show == 1.0) {
@@ -231,6 +232,9 @@ void fragment() {
 	// 字体模式下
 	if(check_test == 1){
 		ALBEDO *= fontColor.rgb;
+
+//		if(cnt*10.0 == 192.) ALBEDO = vec3(1.,0,0);
+//		else ALBEDO = vec3(0,1.,0);
 		//黑色外包框效果不佳
 		if(eq(ALBEDO,BLACK))
 			ALBEDO += outLineColor.xyz;
@@ -240,7 +244,7 @@ void fragment() {
 	if(Color == 1.0) {
 		ALBEDO *= hoverColor.rgb;
 	}
-	else if(Color == 2.0)
+	else if(Color == 2.0 && check_test == 1)
 	{
 		ALBEDO *= hitColor.rgb;
 	}

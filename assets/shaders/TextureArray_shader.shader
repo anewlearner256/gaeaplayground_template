@@ -1,24 +1,97 @@
 shader_type spatial;
 
-uniform vec2 uv_zero;
-uniform vec2 uv_length;
-uniform sampler3D tex1;//纹理1
-uniform sampler3D tex2;//纹理2
-uniform float timer;//时间0-1;
-uniform float steps = 200;//射线间隔
-uniform vec3 camera_pos;//相机在模型为中心的位置
-uniform vec3 box_min;//模型最小BOX
-uniform vec3 box_max;//模型最大BOX
-uniform vec3 box_center;//模型中心点
-uniform vec2 box_rotation1;//模型旋转inverse
-uniform vec2 box_rotation2;//模型旋转inverse
-varying vec3 vDirection;
-varying vec3 vOrigin;
+render_mode unshaded,cull_front;
+uniform sampler3D tex1:hint_black;//纹理1
+uniform sampler3D tex2:hint_black;//纹理2
+uniform sampler3D tex3:hint_black;
+uniform float timer :hint_range(0.0,1.0) =0.0;//时间0-1;
+uniform float steps = 50;//射线间隔
+uniform float xcull = 1.0;
+uniform float ycull = 0.0;
+varying vec3 world_camera;
+varying vec3 world_position;
 
-vec3 Xform(vec4 ro, vec3 v)
+varying mat3 normalMat;
+varying vec3 ecPosition;
+uniform vec3 lightDirection;
+const float epsilon = 0.0001;
+
+const vec3 box_min = vec3(-0.5);
+const vec3 box_max = vec3(0.5);
+
+
+vec4 Interpolation(vec3 p, float percentage)
 {
-    vec3 vector2 = cross(ro.xyz ,v);
-    return v + (vector2 * ro.w + cross(ro.xyz,vector2)) * 2.0;
+   vec4 color1,color2;
+   color1 = texture(tex1, p);
+   color2 = texture(tex2, p);
+   color1 = color1 * (1.0 - percentage) + color2 * percentage;
+   return color1;
+}
+
+vec3 Gradient(vec3 texturecoord)
+{
+    vec3 gradient;
+    //float dx=0.5f/(dimensions.x);
+    //float dy=0.5f/(dimensions.y);
+    //float dz=0.5f/(dimensions.z);
+	
+	if ( texturecoord.x < epsilon ) return vec3( 1.0, 0.0, 0.0 );
+	if ( texturecoord.y < epsilon ) return vec3( 0.0, 1.0, 0.0 );
+	if ( texturecoord.z < epsilon ) return vec3( 0.0, 0.0, 1.0 );
+	if ( texturecoord.x > 1.0 - epsilon ) return vec3( - 1.0, 0.0, 0.0 );
+	if ( texturecoord.y > 1.0 - epsilon ) return vec3( 0.0, - 1.0, 0.0 );
+	if ( texturecoord.z > 1.0 - epsilon ) return vec3( 0.0, 0.0, - 1.0 );
+   
+	float step1 = 0.01;
+    vec3 a0;
+    vec3 a1;
+
+	{
+		a0.x=Interpolation(texturecoord.xyz+vec3(step1,0,0), timer).x;
+		a1.x=Interpolation(texturecoord.xyz+vec3(-step1,0,0), timer).x;
+	}
+    
+	{
+		a0.y=Interpolation(texturecoord.xyz+vec3(0,step1,0), timer).x;
+		a1.y=Interpolation(texturecoord.xyz+vec3(0,-step1,0), timer).x;
+	}
+	
+	{
+		a0.z=Interpolation(texturecoord.xyz+vec3(0,0,step1), timer).x;
+		a1.z=Interpolation(texturecoord.xyz+vec3(0,0,-step1), timer).x;
+	}
+    
+    gradient = normalize(a1-a0);
+    return gradient;
+}
+
+vec4 PS_Lighting(vec4 color , vec3 p)
+{  
+    float ka = 0.5;
+	float kd = 0.5;
+    float ks = 0.5f;
+    float expS = 100.0;
+	
+	mat3 normalMat33 = normalMat;
+	vec4 lightColor = vec4(1.0,1.0,1.0,1.0);
+	
+    vec3 gradient = normalize((normalMat33 * Gradient(p)));
+	
+	vec3 lightVec = normalize(lightDirection);
+    vec3 halfv= reflect(-lightVec,gradient);
+    vec3 viewVec= normalize(-ecPosition).xyz;
+	float diffuse  = abs(dot(lightVec, gradient));
+	
+	float specular = 0.0;
+    if(diffuse>0.0)
+    {
+        specular = pow(abs(dot(halfv, viewVec)), expS);
+    }
+    diffuse=kd*diffuse;
+    specular=ks*specular;
+    color.rgb=color.rgb *(ka+diffuse)+specular*lightColor.rgb;
+   return color;
 }
 
 vec2 hitBox( vec3 orig, vec3 dir ) {
@@ -36,68 +109,77 @@ vec4 blendColor( vec4 destColor ,vec4 srcColor)
 {
 	float cla = srcColor.a + destColor.a - srcColor.a * destColor.a;
 	vec3 clo = (srcColor.xyz * srcColor.a * (1.0 - destColor.a) + destColor.xyz * destColor.a) / cla;
-	
 	return vec4(clo,cla);
 }		
 					
 void vertex() {
-	vOrigin = Xform(vec4(box_rotation1, box_rotation2), camera_pos) - Xform(vec4(box_rotation1, box_rotation2), box_center);
-	vDirection =  VERTEX.xyz - vOrigin;
+	world_position = VERTEX;
+	world_camera = (inverse(MODELVIEW_MATRIX) * vec4(0, 0, 0, 1)).xyz; 
+
+	ecPosition= mat3(WORLD_MATRIX * MODELVIEW_MATRIX) * VERTEX;
+	normalMat = transpose(mat3(inverse(WORLD_MATRIX * MODELVIEW_MATRIX)));
 }
 
 void fragment() {
-	vec3 rayDir = normalize( vDirection );
+	vec3 vOrigin = world_camera;
+	vec3 rayDir = normalize( world_position - vOrigin);
 	vec2 bounds = hitBox(vOrigin, rayDir);
 
-	if( bounds.x >= bounds.y)
+	if( bounds.x > bounds.y)
 	{
 		discard;
 	}
 	else
 	{
+		bounds.x = max( bounds.x, 0.0 );
 		vec3 p = vOrigin + bounds.x * rayDir;
-		float delta = (bounds.y - bounds.x) / steps;
-		delta = ceil(delta);
+		vec3 pFirst;
+		float first = 0.0;
+
+		vec3 inc = 1.0 / abs( rayDir );
+		float delta = min( inc.x, min( inc.y, inc.z ) );
+		delta /= float(steps);
+
 		vec4 tmpColor;
-		{
-			int k = 0;
-			int l = 0;
-			for (float t = bounds.x; t < bounds.y; t += delta)
+		for (float t = bounds.x; t <= bounds.y; t += delta)
+		{		
+			vec4 tmp0 =  texture(tex1 , p + 0.5);
+			vec4 tmp1 =  texture(tex2 , p + 0.5);
+			vec4 tmp2 = tmp0 * (1.0 - timer) + tmp1 * timer;
+			vec4 tmp;
+			if(tmp2.r <= 0.01) 
+				tmp = vec4(0.0,0.0,0.0,0.0);
+			else
+				tmp = texture(tex3, vec3(tmp2.r, 1, 1));
+			if(p.y < ycull && p.x > xcull) 
 			{
-				float u = (p.x  - box_min.x) /(box_max.x  - box_min.x);
-				float v = (p.y  - box_min.y) /(box_max.y  - box_min.y);
-				float w = (p.z  - box_min.z) /(box_max.z  - box_min.z);
-				vec4 tmp0 =  texture(tex1 , vec3(uv_zero.x + u * uv_length.x,uv_zero.y + v * uv_length.y, w));
-				vec4 tmp1 =  texture(tex2 , vec3(uv_zero.x + u * uv_length.x,uv_zero.y + v * uv_length.y, w));
-				//vec4 tmp0 =  texture(tex1 , vec3( u, v , w));
-				//vec4 tmp1 =  texture(tex2 , vec3( u, v , w));
-				vec4 tmp = tmp0  + (tmp1 - tmp0) * timer;
-				if (tmp.a > 0.0) 
-				{
-					l = 1;
-					if(k == 0)
-					{
-						tmpColor.rgb = tmp.rgb;
-						tmpColor.a = tmp.a;
-						k = 1;
-					}
-					else
-					{
-						vec4 cc = blendColor(tmpColor, tmp);
-						tmpColor.rgb = cc.xyz;
-						tmpColor.a = cc.w;
-					}
-					if(tmpColor.a >= 1.0 || tmp.a >= 1.0)
-						break;
-				}
-				p += rayDir * delta ;
+				tmp.a = 0.0;
 			}
+			if (tmp.a > 0.0) 
+			{
+				tmpColor = blendColor(tmpColor, tmp);
+				//tmpColor.rgb += (1.0 - tmpColor.a) * tmp.a * tmp.rgb;
+				//tmpColor.a += (1.0 - tmpColor.a) * tmp.a;
+				if(first == 0.0)
+				{
+					pFirst = p;
+					first = 1.0;
+				}
+				if(tmpColor.a >= 1.0)
+				{
+					break;
+				}
+		
+			}
+			p += rayDir * delta;
+		}
+		if(tmpColor.a == 0.0)
+			discard;
+		else
+		{
+			//tmpColor = PS_Lighting(tmpColor, pFirst + 0.5);
 			ALPHA = tmpColor.a;
 			ALBEDO = tmpColor.rgb;
-			if ( ALPHA == 0.0 ) 
-				discard;
-			if(l == 0)
-		  		ALPHA = 0.0;
 		}
 	}
 }

@@ -2,6 +2,8 @@ shader_type spatial;
 render_mode depth_draw_alpha_prepass,unshaded,cull_back, ambient_light_disabled, depth_test_disable;
 uniform sampler2D texture_albedo : hint_albedo;
 
+uniform vec4 texture_color : hint_color = vec4(1.0); 
+
 uniform float distance_to_center;
 uniform int anchor;
 
@@ -209,6 +211,8 @@ void fragment() {
 	ALBEDO = albedo_tex.rgb;
 	ALPHA=albedo_tex.a;
 	
+	
+	
 	// 字体模式下
 	if(text_mode == 1){
 		ALBEDO *= fontColor.rgb;
@@ -217,5 +221,10 @@ void fragment() {
 			ALBEDO += outLineColor.xyz;
 			
 //		ALBEDO *= COLOR.xyz;
+	}
+	else { 
+		// 图片模式
+		ALBEDO *= texture_color.rgb;
+		ALPHA *= texture_color.a;
 	}
 }
