@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=2]
+[gd_scene load_steps=12 format=2]
 
 [ext_resource path="res://proxy/Sky_Proxy.cs" type="Script" id=1]
 [ext_resource path="res://proxy/World_Proxy.cs" type="Script" id=2]
@@ -9,6 +9,7 @@
 [ext_resource path="res://proxy/DebugDraw_Proxy.cs" type="Script" id=7]
 [ext_resource path="res://assets/material/atmo.tres" type="Material" id=8]
 [ext_resource path="res://proxy/WeatherManager_Proxy.cs" type="Script" id=9]
+[ext_resource path="res://proxy/ImmedDraw_Proxy.cs" type="Script" id=10]
 
 [sub_resource type="QuadMesh" id=1]
 size = Vector2( 2, 2 )
@@ -19,6 +20,7 @@ IsPyramidTileSetNeedCache = false
 Is3DTilesNeedCache = false
 
 [node name="InsideEarth" type="MeshInstance" parent="."]
+layers = 524288
 script = ExtResource( 4 )
 
 [node name="Camera" type="Camera" parent="."]
@@ -32,13 +34,22 @@ script = ExtResource( 9 )
 WeatherShader = ExtResource( 8 )
 
 [node name="Sun" type="DirectionalLight" parent="."]
+shadow_enabled = true
+directional_shadow_max_distance = 8192.0
 script = ExtResource( 6 )
+UseAutoShadowDistance = true
 
 [node name="Sky" type="MeshInstance" parent="."]
+layers = 524288
 script = ExtResource( 1 )
 
 [node name="Cloud" type="MeshInstance" parent="."]
+visible = false
+layers = 524288
 script = ExtResource( 5 )
 
 [node name="DebugDraw" type="Node" parent="."]
 script = ExtResource( 7 )
+
+[node name="Node" type="Node" parent="."]
+script = ExtResource( 10 )

@@ -11,6 +11,17 @@ public class World_Proxy : World
     {
         GD.Print($"当前引擎版本: [{GetVersion()}]");
         base._Ready();
+
+        // var tool  = new DrawCircularTool();
+        // tool.DeleteElementOnDispose = false;
+
+        // DrawDoubleArrowTool drawDoubleArrowTool = new DrawDoubleArrowTool();
+        // World.Instance.AddChild(drawDoubleArrowTool);
+		// drawDoubleArrowTool.OverDraw += () =>
+		// {
+			
+		// };
+
     }
 
 }
