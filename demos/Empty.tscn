@@ -53,3 +53,5 @@ script = ExtResource( 7 )
 
 [node name="Node" type="Node" parent="."]
 script = ExtResource( 10 )
+
+[node name="MeshLayer" type="Node" parent="."]
