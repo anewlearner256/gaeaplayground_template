@@ -17,8 +17,12 @@ render_mode depth_draw_always, specular_schlick_ggx, cull_disabled;
 uniform float normal_scale : hint_range(-16.0, 16.0) = 1.0;
 uniform sampler2D normal_bump_texture : hint_normal;
 uniform vec3 uv_scale = vec3(1.0, 1.0, 1.0);
+uniform bool flow_dir = true;
 uniform float roughness : hint_range(0.0, 1.0) = 0.2;
 uniform float edge_fade : hint_range(0.0, 1.0) = 0.25;
+uniform float distance_fade_min;
+uniform float distance_fade_max;
+
 
 // Albedo
 //uniform mat4 albedo_color = mat4(vec4(0.0, 0.15, 0.0, 0.0), vec4(0.8, 0.2, 0.0, 0.0), vec4(1.0, 0.5, 0.0, 0.0), vec4(0.0));
@@ -163,9 +167,19 @@ void fragment() {
 	vec3 flowx2_uvA = FlowUVW(UV, flow, jump2, uv_scale * 2.0, time, false);
 	vec3 flowx2_uvB = FlowUVW(UV, flow, jump2, uv_scale * 2.0, time, true);
 	// Level 1 Water
+	vec2 flow_uvA2;
+	vec2 flow_uvB2;
+	if(flow_dir)
+	{
+		flow_uvA2 = vec2(UV.x * uv_scale.x + TIME * 0.1 * flow_speed * 4.0, UV.y * uv_scale.y);
+		flow_uvB2 = vec2(UV.x * uv_scale.x + TIME * 0.1 * flow_speed * 8.0, UV.y * uv_scale.y);
+	}
+	else
+	{
+		flow_uvA2 = vec2(UV.x * uv_scale.x, UV.y * uv_scale.y + TIME * 0.1 * flow_speed * 4.0);
+		flow_uvB2 = vec2(UV.x * uv_scale.x, UV.y * uv_scale.y + TIME * 0.1 * flow_speed * 8.0);
+	}
 	
-	vec2 flow_uvA2 = vec2(UV.x * uv_scale.x + TIME * 0.1 * flow_speed * 4.0, UV.y * uv_scale.y);
-	vec2 flow_uvB2 = vec2(UV.x * uv_scale.x + TIME * 0.1 * flow_speed * 8.0, UV.y * uv_scale.y);
 	
 	
 	vec3 water_a = texture(normal_bump_texture, flow_uvA2.xy).rgb;
@@ -250,5 +264,6 @@ void fragment() {
 
 	vec4 world_pos = INV_PROJECTION_MATRIX * vec4(SCREEN_UV * 2.0 - 1.0, depth_tex * 2.0 - 1.0, 1.0);
 	world_pos.xyz /= world_pos.w;
-	ALPHA *= clamp(1.0 - smoothstep(world_pos.z + edge_fade, world_pos.z, VERTEX.z), 0.0, 1.0);
+//	ALPHA *= clamp(1.0 - smoothstep(world_pos.z + edge_fade, world_pos.z, VERTEX.z), 0.0, 1.0);
+	ALPHA*=clamp(smoothstep(distance_fade_min,distance_fade_max,-VERTEX.z),0.0,1.0);
 }

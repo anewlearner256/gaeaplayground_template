@@ -5,12 +5,14 @@ uniform sampler2D screen_texture;
 uniform sampler2D iChannel3;
 
 uniform bool snowy = false;
-uniform bool rain = false;
+uniform bool rainy = false;
 uniform bool flash = false;
 
+uniform vec4 rainy_color : hint_color = vec4(0.9411,0.9764,1.0,1.0);
 uniform float wind_direction : hint_range(-1.5,1.5,0.1) = -0.5; // 风向
 uniform float speed : hint_range(0,100,2) = 10; // 速度
-uniform int count : hint_range(0,100,5) = 50; // 粒子数量
+uniform int rainy_count : hint_range(0,500,5) = 50; // 粒子数量
+uniform int snowy_count : hint_range(0,500,5) = 50; // 粒子数量
 uniform float flash_frequency : hint_range(4.0,12.0,0.5) = 8; // 闪电频率
 uniform float flash_strength :  hint_range(0.5,4.0,0.5) = 2; // 闪电亮度
 
@@ -602,7 +604,7 @@ vec3 Snowy(vec4 fragCoord,vec2 iResolution){
 	//vec3 acc = vec3(col);
 	float dof = 5.*sin(TIME*.1);
 	vec3 col_ = vec3(0);
-	for (int i=0;i<count;i++) 
+	for (int i=0;i<snowy_count;i++) 
 	{
 		float fi = float(i);
 		vec2 q = uv*(1.+fi* 0.1);
@@ -621,7 +623,7 @@ vec3 Snowy(vec4 fragCoord,vec2 iResolution){
 	return col_;
 }
 
-vec3 Rain(vec4 fragCoord,vec2 iResolution){
+vec3 Rainy(vec4 fragCoord,vec2 iResolution){
 	float iTime = TIME;
 	vec2 q = fragCoord.xy/iResolution.xy;
     vec2 p = -1.0+2.0*q;
@@ -648,7 +650,7 @@ vec3 Rain(vec4 fragCoord,vec2 iResolution){
 			f = (texture(iChannel3, st * .5, -99.0).x + texture(iChannel3, st*.284, -99.0).y);
 			f = clamp(pow(abs(f)*.75, 10.0) * speed, 0.00, q.y*.4+.05);
 
-			vec3 bri = vec3(.25) * float(count) / 100.;
+			vec3 bri = vec3(.25) * float(rainy_count) / 100.;
 			for (int t = 0; t < 11; t++)
 			{
 				vec3 v3 = - plane.xyz;
@@ -771,8 +773,8 @@ void fragment() {
 	if(snowy) {
 		col += Snowy(fragCoord,iResolution);
 	}
-	if(rain) {
-		col += Rain(fragCoord,iResolution) * vec3(240. / 255.,249./225.,255./255.);
+	if(rainy) {
+		col += Rainy(fragCoord,iResolution) * rainy_color.rgb;
 	}
 	if(need_atmosphere)
 	{

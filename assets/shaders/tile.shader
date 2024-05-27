@@ -5,6 +5,7 @@ uniform vec2 Origin;
 uniform vec2 Span;
 
 uniform bool useRollerBlind = false;
+uniform bool splitScreenEnable = false;
 uniform vec2 splitline;
 uniform int splitDirection1;
 uniform int splitDirection2;
@@ -13,6 +14,42 @@ uniform int splitDirection4;
 uniform int splitDirection5;
 uniform int splitDirection6;
 uniform int splitDirection7;
+uniform int viewport11;
+uniform int viewport12;
+uniform int viewport13;
+uniform int viewport14;
+
+uniform int viewport21;
+uniform int viewport22;
+uniform int viewport23;
+uniform int viewport24;
+
+uniform int viewport31;
+uniform int viewport32;
+uniform int viewport33;
+uniform int viewport34;
+
+uniform int viewport41;
+uniform int viewport42;
+uniform int viewport43;
+uniform int viewport44;
+
+uniform int viewport51;
+uniform int viewport52;
+uniform int viewport53;
+uniform int viewport54;
+
+uniform int viewport61;
+uniform int viewport62;
+uniform int viewport63;
+uniform int viewport64;
+
+uniform int viewport71;
+uniform int viewport72;
+uniform int viewport73;
+uniform int viewport74;
+
+
 
 //全局透明
 uniform float transparency;
@@ -131,10 +168,10 @@ varying mat4 modelViewMatrix_inv;
 
 vec4 blendColor(vec4 srcColor, vec4 destColor)
 {
-	if(1.0 - srcColor.r <= 0.01&&1.0 - srcColor.g <= 0.01&&1.0 - srcColor.b <= 0.01 && destColor.a!=0.0)
-	{
-		srcColor.a = 0.0;
-	}
+//	if(1.0 - srcColor.r <= 0.01&&1.0 - srcColor.g <= 0.01&&1.0 - srcColor.b <= 0.01 && destColor.a!=0.0)
+//	{
+//		srcColor.a = 0.0;
+//	}
 	if(srcColor.a==1.0) {
 		return srcColor;
 	}
@@ -294,7 +331,8 @@ void fragment()
 	}
 	
 	vec4 diffuse;
-	if(HasImg1 == 1){
+	if(HasImg1 == 1)
+	{
 		vec2 uv = UV * Img1Scale + Img1Offset;
 		if(useRollerBlind)
 		{
@@ -314,11 +352,24 @@ void fragment()
 			}
 			diffuse = blendColor(texture(Img1, uv) * t1, diffuse);
 		}
+		else if(splitScreenEnable)
+		{
+			if(VIEWPORT_ID == viewport11 || VIEWPORT_ID == viewport12 || VIEWPORT_ID == viewport13 || VIEWPORT_ID == viewport14)
+			{
+				diffuse = blendColor(texture(Img1, uv) * transparency1, diffuse);
+			}
+			else if(VIEWPORT_ID == 0 || VIEWPORT_ID == 0 || VIEWPORT_ID == 0 || VIEWPORT_ID == 0)
+			{
+				diffuse = vec4(1, 0, 0, 1);
+			}
+		}
 		else
 		{
 			diffuse = blendColor(texture(Img1, uv) * transparency1, diffuse);
 		}
-		}else{
+	}
+	else
+	{
 		diffuse = vec4(1, 1, 1, 0);
 	}
 	if(HasImg2 == 1) {
@@ -340,6 +391,13 @@ void fragment()
 				}
 			}
 			diffuse = blendColor(texture(Img2, uv) * t2, diffuse);
+		}
+		else if(splitScreenEnable)
+		{
+			if(VIEWPORT_ID == viewport21 || VIEWPORT_ID == viewport22 || VIEWPORT_ID == viewport23 || VIEWPORT_ID == viewport24)
+			{
+				diffuse = blendColor(texture(Img2, uv) * transparency1, diffuse);
+			}
 		}
 		else
 		{
@@ -366,6 +424,13 @@ void fragment()
 			}
 			diffuse = blendColor(texture(Img3, uv) * t3, diffuse);
 		}
+		else if(splitScreenEnable)
+		{
+			if(VIEWPORT_ID == viewport31 || VIEWPORT_ID == viewport32 || VIEWPORT_ID == viewport33 || VIEWPORT_ID == viewport34)
+			{
+				diffuse = blendColor(texture(Img3, uv) * transparency1, diffuse);
+			}
+		}
 		else
 		{
 			diffuse = blendColor(texture(Img3, uv) * transparency3, diffuse);
@@ -390,6 +455,13 @@ void fragment()
 				}
 			}
 			diffuse = blendColor(texture(Img4, uv) * t4, diffuse);
+		}
+		else if(splitScreenEnable)
+		{
+			if(VIEWPORT_ID == viewport41 || VIEWPORT_ID == viewport42 || VIEWPORT_ID == viewport43 || VIEWPORT_ID == viewport44)
+			{
+				diffuse = blendColor(texture(Img4, uv) * transparency1, diffuse);
+			}
 		}
 		else
 		{
@@ -416,6 +488,13 @@ void fragment()
 			}
 			diffuse = blendColor(texture(Img5, uv) * t5, diffuse);
 		}
+		else if(splitScreenEnable)
+		{
+			if(VIEWPORT_ID == viewport51 || VIEWPORT_ID == viewport52 || VIEWPORT_ID == viewport53 || VIEWPORT_ID == viewport54)
+			{
+				diffuse = blendColor(texture(Img5, uv) * transparency1, diffuse);
+			}
+		}
 		else
 		{
 			diffuse = blendColor(texture(Img5, uv) * transparency5, diffuse);
@@ -441,6 +520,13 @@ void fragment()
 			}
 			diffuse = blendColor(texture(Img6, uv) * t6, diffuse);
 		}
+		else if(splitScreenEnable)
+		{
+			if(VIEWPORT_ID == viewport61 || VIEWPORT_ID == viewport62 || VIEWPORT_ID == viewport63 || VIEWPORT_ID == viewport64)
+			{
+				diffuse = blendColor(texture(Img6, uv) * transparency1, diffuse);
+			}
+		}
 		else
 		{
 			diffuse = blendColor(texture(Img6, uv) * transparency6, diffuse);
@@ -465,6 +551,13 @@ void fragment()
 				}
 			}
 			diffuse = blendColor(texture(Img7, uv) * t7, diffuse);
+		}
+		else if(splitScreenEnable)
+		{
+			if(VIEWPORT_ID == viewport71 || VIEWPORT_ID == viewport72 || VIEWPORT_ID == viewport73 || VIEWPORT_ID == viewport74)
+			{
+				diffuse = blendColor(texture(Img7, uv) * transparency1, diffuse);
+			}
 		}
 		else
 		{

@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode cull_disabled, skip_vertex_transform, shadows_disabled,depth_test_disable,ambient_light_disabled,unshaded;
+render_mode cull_disabled, skip_vertex_transform, shadows_disabled,depth_test_disable,ambient_light_disabled;
 
 uniform float lineWidth;
 uniform int lineStyle = 0;
@@ -10,7 +10,7 @@ uniform bool hasLineTex = false;
 uniform bool isFlowing = false;
 uniform float flowVelocity = 1.0;
 uniform float repeatTimes = 10;
-uniform float emissionpower = 1.0;
+uniform float emissionpower = 0.0;
 varying vec3 color;
 
 
@@ -142,6 +142,8 @@ void vertex(){
 		dir1_3d = NORMAL * 100.0;
 		dir2_3d = TANGENT * 100.0;
 	}
+	NORMAL = vec3(1);
+	TANGENT = vec3(1);
 	vec3 prevP_3d = VERTEX - dir1_3d;
 	vec3 nextP_3d = VERTEX + dir2_3d; 
 	vec4 prevP = transform_screen_pos(PROJECTION_MATRIX, MODELVIEW_MATRIX, prevP_3d, VIEWPORT_SIZE);
@@ -169,6 +171,7 @@ void fragment(){
 //	float len = UV2.y / COLOR.x / UV.x;
 //	float cameraHeight = length(CAMERA_RELATIVE_POS) - 6378137.0;
 //	float num = len / cameraHeight / 0.1;
+//	float uv_x = UV.y * repeatTimes;
 	float uv_x = UV.x * repeatTimes;
 	float uv2_y = UV2.y * repeatTimes;
 	
@@ -180,29 +183,16 @@ void fragment(){
 	if(hasLineTex)
 	{
 		vec4 c = texture(lineTex, vec2(mod(uv_x, 1.0), UV.y));
-		ALBEDO = c.xyz + lineColor.rgb;
-//		ALBEDO = texture(lineTex, vec2(mod(uv_x, 1.0), UV.y)).xyz + lineColor.rgb;
-		//EMISSION = texture(lineTex, vec2(mod(uv_x, 1.0), UV.y)).xyz * vec3(0, 10, 0);
-//		ALPHA =  1.0 / (1.0 + exp(-0.5 * (texture(lineTex, vec2(mod(uv_x, 1.0), UV.y)).a * 20.0 - 10.0)));
+		ALBEDO = c.xyz * lineColor.rgb;
 		ALPHA =  c.a;
 		EMISSION = ALBEDO * lineColor.rgb * emissionpower;
-		//EMISSION = (emission.rgb+emission_tex)*emission_energy;
-//		ALPHA =  0.5;
 	}
 	else
 	{
 		ALBEDO = lineColor.rgb;
 		ALPHA = lineColor.a;
+		EMISSION = ALBEDO * emissionpower;
 	}
-	//EMISSION = vec3(0, 1, 0);
-//	if(lineStyle == 1)
-//	{
-//		if(mod(uv2_y, 100.0) <= 50.0)
-//		{
-//			discard;
-//		}
-//	}
-	
 	if(lineStyle == 1)
 	{
 		float d = 1.0;
@@ -211,24 +201,11 @@ void fragment(){
 			discard;
 		}
 	}
-//	if(abs(COLOR.x - 0.01) < 0.001)
-//	{
-//		ALBEDO = vec3(0,1, 0);
-//	}
-//	if(len < 1000.0)
-//	{
-//		ALBEDO = vec3(0, 0, 1);
-//	}
+	ALBEDO = mix(pow((ALBEDO+ vec3(0.055)) * (1.0 / (1.0 + 0.055)),vec3(2.4)),ALBEDO * (1.0 / 12.92),lessThan(ALBEDO,vec3(0.04045)));
+}
 
-	
-//
-//	if(UV.y >= 0.8 || UV.y <= 0.2)
-//	{
-//		ALBEDO = lineColor + vec3(1, 1, 1);	
-//	}
-	
-//	if(abs(UV2.y - 62375.0) < 1000.0)
-//	{
-//		ALBEDO = vec3(0, 0, 1);
-//	}
+
+void light()
+{
+	DIFFUSE_LIGHT = ALBEDO;
 }

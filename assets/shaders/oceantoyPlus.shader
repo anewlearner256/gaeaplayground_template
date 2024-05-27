@@ -18,7 +18,7 @@ uniform float radius;
 uniform float radiusA;
 uniform float radiusB;
 uniform float radiusC;
-uniform float distFactor = 0.17;
+uniform float distFactor = 0.17; //可以调节辉光强度
 uniform mat4 cameraToOcean;
 uniform mat4 oceanToCamera;
 uniform mat4 oceanToWorld;
@@ -884,17 +884,13 @@ void vertex()
 //	NORMAL = n;
 	float h = map_detailed(vec3(uv.x, 1, uv.y));
 	pointInOcean = t * cameraDir;
-//	pointInOcean += (oceanToCamera * vec4(0, h, 0, 0.0)).xyz;
+	pointInOcean += (oceanToCamera * vec4(0, h, 0, 0.0)).xyz;
     
     
 	vertex_v = VERTEX;
-	vec4 vv = inverse(WORLD_MATRIX) * inverse(INV_CAMERA_MATRIX) * vec4( pointInOcean, 1.0);
-	VERTEX =  vv.xyz;
-	VERTEX.y += h;
 
-
-//	POSITION = (PROJECTION_MATRIX  * vec4(pointInOcean, 1.0));
-//	POSITION = POSITION / POSITION.w;
+	POSITION = (PROJECTION_MATRIX  * vec4(pointInOcean, 1.0));
+	POSITION = POSITION / POSITION.w;
 
 	NORMAL = -n;
 	}

@@ -7,8 +7,11 @@
 shader = ExtResource( 1 )
 shader_param/normal_scale = 1.0
 shader_param/uv_scale = Vector3( 17, 43, 1 )
+shader_param/flow_dir = true
 shader_param/roughness = 0.221
 shader_param/edge_fade = 0.25
+shader_param/distance_fade_min = null
+shader_param/distance_fade_max = null
 shader_param/color_deep = Color( 0.713726, 0.717647, 0.607843, 1 )
 shader_param/color_shallow = Color( 0.666667, 0.690196, 0.588235, 1 )
 shader_param/albedo_depth = 104.595

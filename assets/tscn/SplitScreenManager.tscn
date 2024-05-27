@@ -1,0 +1,140 @@
+[gd_scene load_steps=5 format=2]
+
+[sub_resource type="CSharpScript" id=3]
+script/source = "
+/**
+* 由生成工具自动生成,请勿在此源码上进行修改以免造成代码丢失;
+*/
+using Godot;
+using Gaea;
+using Gaea.Scene;
+public class SplitScreenManager_Proxy : SplitScreenManager { }
+"
+
+[sub_resource type="CSharpScript" id=4]
+script/source = "
+/**
+* 由生成工具自动生成,请勿在此源码上进行修改以免造成代码丢失;
+*/
+using Godot;
+using Gaea;
+using Gaea.Scene;
+public class SubViewportContainer_Proxy : SubViewportContainer { }
+"
+
+[sub_resource type="CubeMesh" id=1]
+
+[sub_resource type="SphereMesh" id=2]
+
+[node name="SplitScreenManager" type="Control"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+script = SubResource( 3 )
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="HBoxContainer" type="HBoxContainer" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+custom_constants/separation = 0
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="LeftVBoxContainer" type="VBoxContainer" parent="HBoxContainer"]
+margin_right = 512.0
+margin_bottom = 600.0
+mouse_filter = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+custom_constants/separation = 0
+
+[node name="LeftUpViewportContainer" type="ViewportContainer" parent="HBoxContainer/LeftVBoxContainer"]
+margin_right = 512.0
+margin_bottom = 600.0
+size_flags_horizontal = 3
+size_flags_vertical = 3
+stretch = true
+script = SubResource( 4 )
+
+[node name="Viewport" type="Viewport" parent="HBoxContainer/LeftVBoxContainer/LeftUpViewportContainer"]
+size = Vector2( 512, 600 )
+handle_input_locally = false
+render_target_update_mode = 3
+
+[node name="Camera" type="Camera" parent="HBoxContainer/LeftVBoxContainer/LeftUpViewportContainer/Viewport"]
+cull_mask = 1048351
+
+[node name="LeftDownViewportContainer" type="ViewportContainer" parent="HBoxContainer/LeftVBoxContainer"]
+visible = false
+margin_top = 300.0
+margin_right = 512.0
+margin_bottom = 600.0
+size_flags_horizontal = 3
+size_flags_vertical = 3
+stretch = true
+script = SubResource( 4 )
+
+[node name="Viewport" type="Viewport" parent="HBoxContainer/LeftVBoxContainer/LeftDownViewportContainer"]
+size = Vector2( 512, 300 )
+handle_input_locally = false
+render_target_update_mode = 0
+
+[node name="Camera" type="Camera" parent="HBoxContainer/LeftVBoxContainer/LeftDownViewportContainer/Viewport"]
+cull_mask = 1048367
+
+[node name="RightVBoxContainer" type="VBoxContainer" parent="HBoxContainer"]
+margin_left = 512.0
+margin_right = 1024.0
+margin_bottom = 600.0
+mouse_filter = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+custom_constants/separation = 0
+
+[node name="RightUpViewportContainer" type="ViewportContainer" parent="HBoxContainer/RightVBoxContainer"]
+margin_right = 512.0
+margin_bottom = 600.0
+size_flags_horizontal = 3
+size_flags_vertical = 3
+stretch = true
+script = SubResource( 4 )
+
+[node name="Viewport" type="Viewport" parent="HBoxContainer/RightVBoxContainer/RightUpViewportContainer"]
+size = Vector2( 512, 600 )
+handle_input_locally = false
+render_target_update_mode = 3
+
+[node name="Camera" type="Camera" parent="HBoxContainer/RightVBoxContainer/RightUpViewportContainer/Viewport"]
+cull_mask = 1048399
+
+[node name="RightDownViewportContainer" type="ViewportContainer" parent="HBoxContainer/RightVBoxContainer"]
+visible = false
+margin_top = 300.0
+margin_right = 512.0
+margin_bottom = 600.0
+size_flags_horizontal = 3
+size_flags_vertical = 3
+stretch = true
+script = SubResource( 4 )
+
+[node name="Viewport" type="Viewport" parent="HBoxContainer/RightVBoxContainer/RightDownViewportContainer"]
+size = Vector2( 512, 300 )
+handle_input_locally = false
+render_target_update_mode = 0
+
+[node name="Camera" type="Camera" parent="HBoxContainer/RightVBoxContainer/RightDownViewportContainer/Viewport"]
+cull_mask = 1048463
+
+[node name="MeshInstance" type="MeshInstance" parent="."]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -6.83044 )
+layers = 160
+mesh = SubResource( 1 )
+material/0 = null
+
+[node name="MeshInstance" type="MeshInstance" parent="MeshInstance"]
+mesh = SubResource( 2 )
+material/0 = null

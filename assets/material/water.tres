@@ -1,14 +1,17 @@
 [gd_resource type="ShaderMaterial" load_steps=3 format=2]
 
 [ext_resource path="res://assets/shaders/river.shader" type="Shader" id=1]
-[ext_resource path="res://assets/images/Water_N_A.jpg" type="Texture" id=2]
+[ext_resource path="res://assets/images/water/Water_N_A.jpg" type="Texture" id=2]
 
 [resource]
 shader = ExtResource( 1 )
 shader_param/normal_scale = 1.719
 shader_param/uv_scale = Vector3( 4, 10, 1 )
+shader_param/flow_dir = true
 shader_param/roughness = 0.251
 shader_param/edge_fade = 0.25
+shader_param/distance_fade_min = null
+shader_param/distance_fade_max = null
 shader_param/color_deep = Color( 0.258824, 0.709804, 0.815686, 1 )
 shader_param/color_shallow = Color( 0.156863, 0.584314, 0.654902, 1 )
 shader_param/albedo_depth = 104.0
