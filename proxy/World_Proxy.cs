@@ -6,6 +6,7 @@ using Godot;
 using Gaea;
 using Gaea.Scene;
 using Gaea.Export;
+using GaeaDisplay;
 public class World_Proxy : World
 {
     internal readonly Godot.Directory DIRECTORY = new Godot.Directory();
@@ -24,16 +25,17 @@ public class World_Proxy : World
 
         // };
 
-        var code = ExportApiManager.Instance.Export(Language.JavaScript);
-        var path = "res://exports/html5";
-        if (!DIRECTORY.DirExists(path))
-            DIRECTORY.MakeDirRecursive(path);
-        using (var f = new File())
-        {
-            f.Open($"{path}/index.js", File.ModeFlags.Write);
-            f.StoreString(code);
-        }
+        // var code = ExportApiManager.Instance.Export(Language.JavaScript);
+        // var path = "res://exports/html5";
+        // if (!DIRECTORY.DirExists(path))
+        //     DIRECTORY.MakeDirRecursive(path);
+        // using (var f = new File())
+        // {
+        //     f.Open($"{path}/index.js", File.ModeFlags.Write);
+        //     f.StoreString(code);
+        // }
 
+        var s = new ColorRect();
         
 
     }

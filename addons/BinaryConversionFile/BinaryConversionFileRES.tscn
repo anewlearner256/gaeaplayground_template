@@ -1,0 +1,60 @@
+[gd_scene format=2]
+
+[node name="BinaryConversionFile" type="Control"]
+anchor_right = 0.293
+margin_right = -0.0320129
+margin_bottom = 200.0
+rect_min_size = Vector2( 300, 200 )
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="Tree" type="Tree" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+margin_top = 29.0
+margin_bottom = 4.0
+allow_rmb_select = true
+select_mode = 2
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="ProgressBar" type="ProgressBar" parent="."]
+visible = false
+anchor_right = 1.0
+margin_top = 27.0
+margin_bottom = 41.0
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="Button" type="Button" parent="."]
+anchor_left = 1.0
+anchor_right = 1.0
+margin_left = -63.0
+margin_bottom = 24.0
+text = "Export"
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="Refresh" type="Button" parent="."]
+anchor_left = 1.0
+anchor_right = 1.0
+margin_left = -127.0
+margin_right = -66.0
+margin_bottom = 24.0
+text = "Refresh"
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="LineEdit" type="LineEdit" parent="."]
+anchor_right = 1.0
+margin_right = -129.0
+margin_bottom = 24.0
+text = "res://"
+__meta__ = {
+"_edit_use_anchors_": false
+}

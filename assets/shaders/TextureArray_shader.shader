@@ -1,9 +1,9 @@
 shader_type spatial;
 
 render_mode unshaded,cull_front;
-uniform sampler3D tex1:hint_black;//纹理1
-uniform sampler3D tex2:hint_black;//纹理2
-uniform sampler3D tex3:hint_black;
+uniform highp sampler3D tex1:hint_albedo;//纹理1
+uniform highp sampler3D tex2:hint_albedo;//纹理2
+uniform highp sampler3D tex3:hint_albedo;
 uniform float timer :hint_range(0.0,1.0) =0.0;//时间0-1;
 uniform float steps = 50;//射线间隔
 uniform float xcull = 1.0;

@@ -2,7 +2,6 @@ class_name ThreadPool2
 extends Node
 # A thread pool designed to perform your tasks efficiently
 
-
 export var use_signals: bool = true
 
 var __tasks: Array = []
@@ -10,8 +9,8 @@ var __task_waits: Array = []
 var read := 0
 var write := 0
 
-var max_len = OS.get_processor_count()
-#var max_len:= 4
+#var max_len = OS.get_processor_count()
+var max_len:= 8
 var __started = false
 var __finished = false
 var __tasks_lock: Mutex = Mutex.new()
@@ -34,6 +33,7 @@ func _ready():
 
 func do_nothing() :
 	pass
+	
 func _do_json_parser(json: String) ->JSONParseResult:
 	return JSON.parse(json)
 # 材质加载
@@ -64,7 +64,9 @@ func _do_texture_worker(path:String,buffer:PoolByteArray):
 				img.srgb_to_linear()
 #		var texture = ImageTexture.new()
 #		texture.create_from_image(img, Texture.FLAG_FILTER)
-		var tex = VisualServer.texture_create_from_image(img,Texture.FLAG_FILTER)
+		#var tex = VisualServer.texture_create_from_image(img,Texture.FLAG_FILTER)
+		var tex = ImageTexture.new()
+		tex.create_from_image(img,Texture.FLAG_FILTER)
 		return tex
 
 # 读取Gltf模型任务
@@ -89,9 +91,12 @@ func _do_io_read(path:String):
 	var result = f.get_buffer(f.get_len())
 	f.close()
 	return result
-	
+onready var dir = Directory.new()	
 # 写入文件任务
 func _do_io_write(path:String,buffer:PoolByteArray):
+	var base = path.get_base_dir()
+	if not dir.dir_exists(base):
+		dir.make_dir_recursive(base)
 	var f = File.new()
 	var err =  f.open(path,File.WRITE)
 	if err != OK:
@@ -149,12 +154,12 @@ func __start() -> void:
 		__started = true
 
 func __execute_tasks(arg_thread) -> void:
-	while not __finished:				
+	while not __finished:		
+		__task_waits[arg_thread].wait()		
+		
 		if __finished:
 			return
-		#print("task id:",arg_thread)
-		__task_waits[arg_thread].wait()
-		
+			
 		__tasks_lock.lock()
 		var task: Future = __tasks[arg_thread]
 		if task.__read_write_flag != 1:
@@ -177,6 +182,26 @@ func __execute_this_task(task: Future) -> void:
 	task.completed = true
 	task.call_deferred("emit_signal","on_complate",task.result)
 #	print("运行结束:",task.tag,":",task.__read_write_flag)
+
+func _notification(what: int):
+	if what == NOTIFICATION_PREDELETE:
+		__wait_for_shutdown()
+
+func __wait_for_shutdown():
+	shutdown()
+	for t in __pool:
+		if t.is_active():
+			t.wait_to_finish()
+
+func queue_free() -> void:
+	shutdown()
+	.queue_free()
+
+func shutdown():
+	__finished = true
+	for i in max_len:
+		__task_waits[i].post()
+	__tasks.clear()
 
 class Future:
 	signal on_complate

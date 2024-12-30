@@ -1,14 +1,33 @@
 shader_type spatial;
-render_mode cull_disabled;
+render_mode cull_disabled, unshaded;
 
-uniform float scale = 1000;
-uniform float matu = 1.0;
+uniform float uvscale = 0.0001;
+uniform float strength = 100.0;
+uniform float strengthN = 100.0;
+uniform float offset = 0.992;
+uniform float factor = 0.5;
+uniform bool useNormal = false;
+uniform bool AA = false;
+uniform float AAF = 3.0;
+uniform float mixF = -0.02;
+uniform float albeoF = 0.65;
+uniform float fresnelF = 2.041;
+uniform int NUM_STEPS = 2;
+uniform float uvF = 1.0;
+uniform float diffuseF = 80;
+uniform float reflectF = 0.27;
+uniform float rough = 0.1;
+uniform float rim = 0.01;
+
+uniform float esp = 0.5;
 uniform float radius;
 uniform float radiusA;
 uniform float radiusB;
 uniform float radiusC;
-uniform float distFactor = 1.0;
+uniform float distFactor = 0.17; //可以调节辉光强度
 uniform mat4 cameraToOcean;
+uniform mat4 oceanToCamera;
+uniform mat4 oceanToWorld;
 uniform vec3 oceanCameraPos;
 uniform vec3 horizon1;
 uniform vec3 horizon2;
@@ -22,10 +41,10 @@ uniform float heightOffset = 0.0; // so that surface height is centered around z
 uniform sampler2D testTex;
 uniform sampler2D transmittanceSampler;
 uniform sampler2D skyIrradianceSampler;
-uniform sampler2D noiseSampler;
-uniform sampler3D noiseSampler3D;
 
-uniform float speed = 0.5;
+uniform sampler2D noiseSampler:hint_white;
+
+
 uniform vec3 sun_dir = vec3(0, 0, 1);
 uniform float reflectivity = 1;
 uniform float hdrExposure = 0.4;
@@ -39,6 +58,7 @@ uniform float distanceOffset = 100;
 
 //varying vec2 uv;
 varying vec3 vertex_v;
+varying vec2 uv_v;
 varying float shadow_factor;
 
 const float Z0 = 1.0;
@@ -63,7 +83,7 @@ const float EPSILON	= 1e-3;
 //#define  EPSILON_NRM	(0.5 / iResolution.x)
 
 // Constant indicaing the number of steps taken while marching the light ray.  
-const int NUM_STEPS = 2;
+
 
 //Constants relating to the iteration of the heightmap for the wave, another part of the rendering
 //process.
@@ -72,18 +92,18 @@ const int ITER_FRAGMENT =5;
 
 // Constants that represent physical characteristics of the sea, can and should be changed and 
 //  played with
-uniform float SEA_HEIGHT = 0.5;
-uniform float SEA_CHOPPY = 3.0;
-uniform float SEA_SPEED = 1.9;
-uniform float SEA_FREQ = 0.24;
-uniform vec4 SEA_BASE :hint_color = vec4(0.11,0.19,0.22,1.0);
-uniform vec4 SEA_WATER_COLOR :hint_color = vec4(0.55,0.9,0.7, 1.0);
+uniform float SEA_HEIGHT = 0.6;
+uniform float SEA_CHOPPY = 4.0;
+uniform float SEA_SPEED = 0.8;
+uniform float SEA_FREQ = 0.16;
+uniform vec4 SEA_BASE :hint_color = vec4(0.13,0.4,0.5,1.0);
+uniform vec4 SEA_WATER_COLOR :hint_color = vec4(0.06,0.29,0.16, 1.0);
 uniform float k1 = 2.951;
 uniform float k2 = 2.16;
 //#define SEA_TIME (iTime * SEA_SPEED)
 
 //Matrix to permute the water surface into a complex, realistic form
-const mat2 octave_m = mat2(vec2(1.7,1.2),vec2(-1.2,1.4));
+const mat2 octave_m = mat2(vec2(1.6,1.2),vec2(-1.2,1.6));
 
 //Space bar key constant
 const float KEY_SP    = 32.5/256.0;
@@ -92,7 +112,14 @@ vec2 oceanPos(vec3 vertex, mat4 screenToCamera, out float t, out vec3 cameraDir,
    
 	vec3 v = vertex;
 	float horizon = horizon1.x + horizon1.y * v.x - sqrt(horizon2.x + (horizon2.y + horizon2.z * v.x) * v.x);
-	cameraDir = normalize((screenToCamera * vec4(v.x, min(v.y, horizon), -1.0, 1.0)).xyz); //视图空间近平面上的点
+	if(oceanCameraPos.y > 0.0)
+	{
+		cameraDir = normalize((screenToCamera * vec4(v.x, min(v.y, horizon), -1.0, 1.0)).xyz); //视图空间近平面上的点
+	}
+	else
+	{
+		cameraDir = normalize((screenToCamera * vec4(v.x, v.y, -1.0, 1.0)).xyz); //视图空间近平面上的点
+	}
 //	vec4 nearPos = screenToCamera * vec4(vertex.x * 2.0 - 1.0, vertex.y* 2.0 - 1.0, -1.0, 1.0);
 //	cameraDir = normalize((nearPos / nearPos.w).xyz);
 //	cameraDir = normalize((screenToCamera * vec4(vertex.x * 2.0 - 1.0, vertex.y* 2.0 - 1.0, -1.0, 1.0)).xyz); //视图空间近平面上的点
@@ -102,25 +129,66 @@ vec2 oceanPos(vec3 vertex, mat4 screenToCamera, out float t, out vec3 cameraDir,
     if (radius == 0.0) {
         t = (heightOffset + Z0 - cz) / dz;
     } else { //求与海面的交点
-        float b = dz * (cz + radius);
-        float c = cz * (cz + 2.0 * radius);
-        float tSphere = - b - sqrt(max(b * b - c, 0.0));
-//		if(b * b - c < 0.0)
-//		{
-//			t = 0.0;
-//			return oceanCameraPos.zx + t * oceanDir.zx;
-//		}
-        float tApprox = - cz / dz * (1.0 + cz / (2.0 * radius) * (1.0 - dz * dz));
-//		float tApprox = - cz / dz;
-		if(((tApprox - tSphere) * dz) < 1.0)
+        if(oceanCameraPos.y > 0.0)
 		{
-			color_out = vec3(1, 0, 0);
+			float b = dz * (cz + radius);
+        	float c = cz * (cz + 2.0 * radius);
+        	float tSphere = - b - sqrt(max(b * b - c, 0.0));
+//			if(b * b - c < 0.0)
+//			{
+//				t = 0.0;
+//				return oceanCameraPos.zx + t * oceanDir.zx;
+//			}
+        	float tApprox = - cz / dz * (1.0 + cz / (2.0 * radius) * (1.0 - dz * dz));
+//			float tApprox = - cz / dz;
+//			if(((tApprox - tSphere) * dz) < 1.0)
+//			{
+//				color_out = vec3(1, 0, 0);
+//			}
+//			else
+//			{
+//				color_out = vec3(0, 1, 0);
+//			}
+        	t = abs((tApprox - tSphere) * dz) < 1.0 ? tApprox : tSphere;
 		}
 		else
 		{
-			color_out = vec3(0, 1, 0);
+			if(dz >= 0.0)
+			{
+				float b = dz * (cz + radius);
+        		float c = cz * (cz + 2.0 * radius);
+        		float tSphere = - b + sqrt(max(b * b - c, 0.0));
+
+        		float tApprox = - cz / dz * (1.0 + cz / (2.0 * radius) * (1.0 - dz * dz));
+
+        		t = abs((tApprox - tSphere) * dz) < 1.0 ? tSphere : tSphere;
+			}
+			else
+			{
+				cz = cz + 20.0;
+				dz = -dz;
+				float b = -dz * (cz + radius - 20.0);
+        		float c = cz * (cz + 2.0 * (radius - 20.0));
+				if(b * b - c < 0.0)
+				{
+				 
+				cz = cz - 20.0;
+				b = -dz * (cz + radius);
+        		c = cz * (cz + 2.0 * (radius));
+				float tSphere;
+
+				tSphere = - b + sqrt(max(b * b - c, 0.0));
+				
+				
+        		float tApprox = - cz / dz * (1.0 + cz / (2.0 * (radius - 20.0)) * (1.0 - dz * dz));
+        		t = abs((tApprox - tSphere) * dz) < 1.0 ? tSphere : tSphere;
+				}
+				else
+				{
+					t = -b;
+				}
+			}
 		}
-        t = abs((tApprox - tSphere) * dz) < 1.0 ? tApprox : tSphere;
 //		t = tApprox;
     }
 //	if(horizon > 1.0)
@@ -136,7 +204,14 @@ vec2 oceanPos(vec3 vertex, mat4 screenToCamera, out float t, out vec3 cameraDir,
 vec2 oceanPos2(vec3 vertex, mat4 screenToCamera, mat4 camToOcean, float cz, out float t, out vec3 cameraDir, out vec3 oceanDir, out vec3 color_out) {
     vec3 v = vertex;
 	float horizon = horizon1.x + horizon1.y * v.x - sqrt(horizon2.x + (horizon2.y + horizon2.z * v.x) * v.x);
-	cameraDir = normalize((screenToCamera * vec4(v.x, min(v.y, horizon), -1.0, 1.0)).xyz); //视图空间近平面上的点
+	if(oceanCameraPos.y > 0.0)
+	{
+		cameraDir = normalize((screenToCamera * vec4(v.x, min(v.y, horizon), -1.0, 1.0)).xyz); //视图空间近平面上的点
+	}
+	else
+	{
+		cameraDir = normalize((screenToCamera * vec4(v.x, v.y, -1.0, 1.0)).xyz); //视图空间近平面上的点
+	}
 //	vec4 nearPos = screenToCamera * vec4(vertex.x * 2.0 - 1.0, vertex.y* 2.0 - 1.0, -1.0, 1.0);
 //	cameraDir = normalize((nearPos / nearPos.w).xyz);
 //	cameraDir = normalize((screenToCamera * vec4(vertex.x * 2.0 - 1.0, vertex.y* 2.0 - 1.0, -1.0, 1.0)).xyz); //视图空间近平面上的点
@@ -146,25 +221,68 @@ vec2 oceanPos2(vec3 vertex, mat4 screenToCamera, mat4 camToOcean, float cz, out 
     if (radius == 0.0) {
         t = (heightOffset + Z0 - cz) / dz;
     } else { //求与海面的交点
-        float b = dz * (cz + radius);
-        float c = cz * (cz + 2.0 * radius);
-        float tSphere = - b - sqrt(max(b * b - c, 0.0));
-//		if(b * b - c < 0.0)
-//		{
-//			t = 0.0;
-//			return oceanCameraPos.zx + t * oceanDir.zx;
-//		}
-        float tApprox = - cz / dz * (1.0 + cz / (2.0 * radius) * (1.0 - dz * dz));
-//		float tApprox = - cz / dz;
-		if(((tApprox - tSphere) * dz) < 1.0)
+       if(oceanCameraPos.y > 0.0)
 		{
-			color_out = vec3(1, 0, 0);
+
+			float b = dz * (cz + radius);
+        	float c = cz * (cz + 2.0 * radius);
+        	float tSphere = - b - sqrt(max(b * b - c, 0.0));
+//			if(b * b - c < 0.0)
+//			{
+//				t = 0.0;
+//				return oceanCameraPos.zx + t * oceanDir.zx;
+//			}
+        	float tApprox = - cz / dz * (1.0 + cz / (2.0 * radius) * (1.0 - dz * dz));
+//			float tApprox = - cz / dz;
+//			if(((tApprox - tSphere) * dz) < 1.0)
+//			{
+//				color_out = vec3(1, 0, 0);
+//			}
+//			else
+//			{
+//				color_out = vec3(0, 1, 0);
+//			}
+        	t = abs((tApprox - tSphere) * dz) < 1.0 ? tSphere : tSphere;
+//			t = tApprox;
 		}
 		else
 		{
-			color_out = vec3(0, 1, 0);
+			if(dz >= 0.0)
+			{
+				float b = dz * (cz + radius);
+        		float c = cz * (cz + 2.0 * radius);
+        		float tSphere = - b + sqrt(max(b * b - c, 0.0));
+
+        		float tApprox = - cz / dz * (1.0 + cz / (2.0 * radius) * (1.0 - dz * dz));
+
+        		t = abs((tApprox - tSphere) * dz) < 1.0 ? tSphere : tSphere;
+			}
+			else
+			{
+				cz = cz + 20.0;
+				dz = -dz;
+				float b = -dz * (cz + radius - 20.0);
+        		float c = cz * (cz + 2.0 * (radius - 20.0));
+				if(b * b - c < 0.0)
+				{
+				 
+				cz = cz - 20.0;
+				b = -dz * (cz + radius);
+        		c = cz * (cz + 2.0 * (radius));
+				float tSphere;
+
+				tSphere = - b + sqrt(max(b * b - c, 0.0));
+				
+				
+        		float tApprox = - cz / dz * (1.0 + cz / (2.0 * (radius - 20.0)) * (1.0 - dz * dz));
+        		t = abs((tApprox - tSphere) * dz) < 1.0 ? tSphere : tSphere;
+				}
+				else
+				{
+					t = -b;
+				}
+			}
 		}
-        t = abs((tApprox - tSphere) * dz) < 1.0 ? tApprox : tSphere;
 //		t = tApprox;
     }
 //	if(horizon > 1.0)
@@ -578,12 +696,15 @@ float specular(vec3 n,vec3 l,vec3 e,float s) {
 // bteitler: Generate a smooth sky gradient color based on ray direction's Y value
 // sky
 vec3 getSkyColor(vec3 e) {
-    e.y = max(e.y,0.0);
-    vec3 ret;
-    ret.x = pow(1.0-e.y,2.0);
-    ret.y = 1.0-e.y;
-    ret.z = 0.6+(1.0-e.y)*0.4;
-    return ret;
+//    e.y = max(e.y,0.0);
+//    vec3 ret;
+//    ret.x = pow(1.0-e.y,2.0);
+//    ret.y = 1.0-e.y;
+//    ret.z = 0.6+(1.0-e.y)*0.4;
+//    return ret;
+	
+	e.y = (max(e.y,0.0)*0.8+0.2)*0.8;
+    return vec3(pow(1.0-e.y,2.0), 1.0-e.y, 0.6+(1.0-e.y)*0.4) * 1.1;
 }
 
 // sea
@@ -644,26 +765,27 @@ float map(vec3 p) {
     // which should give you an idea of what is going.  You don't need to graph this function because it
     // appears to your left :)
     float d, h = 0.0;    
-    for(int i = 0; i < ITER_GEOMETRY; i++) {
-        // bteitler: start out with our 2D symmetric wave at the current frequency
-    	d = sea_octave((uv+ TIME * SEA_SPEED)*freq,choppy);
-        // bteitler: stack wave ontop of itself at an offset that varies over time for more height and wave pattern variance
-    	//d += sea_octave((uv-SEA_TIME)*freq,choppy);
-
-        h += d * amp; // bteitler: Bump our height by the current wave function
-        
-        // bteitler: "Twist" our domain input into a different space based on a permutation matrix
-        // The scales of the matrix values affect the frequency of the wave at this iteration, but more importantly
-        // it is responsible for the realistic assymetry since the domain is shiftly differently.
-        // This is likely the most important parameter for wave topology.
-    	uv *=  octave_m;
-        
-        freq *= 1.9; // bteitler: Exponentially increase frequency every iteration (on top of our permutation)
-        amp *= 0.22; // bteitler: Lower the amplitude every frequency, since we are adding finer and finer detail
-        // bteitler: finally, adjust the choppy parameter which will effect our base 2D sea_octave shape a bit.  This makes
-        // the "waves within waves" have different looking shapes, not just frequency and offset
-        choppy = mix(choppy,1.0,0.2);
-    }
+//	h = (texture(noiseSampler, p.xy * uvscale).x * 2.0 - 1.0) * strength;
+//    for(int i = 0; i < ITER_GEOMETRY; i++) {
+//        // bteitler: start out with our 2D symmetric wave at the current frequency
+//    	d = sea_octave((uv + TIME * SEA_SPEED)*freq,choppy);
+//        // bteitler: stack wave ontop of itself at an offset that varies over time for more height and wave pattern variance
+//    	d += sea_octave((uv - TIME * SEA_SPEED)* freq,choppy);
+//
+//        h += d * amp; // bteitler: Bump our height by the current wave function
+//
+//        // bteitler: "Twist" our domain input into a different space based on a permutation matrix
+//        // The scales of the matrix values affect the frequency of the wave at this iteration, but more importantly
+//        // it is responsible for the realistic assymetry since the domain is shiftly differently.
+//        // This is likely the most important parameter for wave topology.
+//    	uv *=  octave_m;
+//
+//        freq *= 1.9; // bteitler: Exponentially increase frequency every iteration (on top of our permutation)
+//        amp *= 0.22; // bteitler: Lower the amplitude every frequency, since we are adding finer and finer detail
+//        // bteitler: finally, adjust the choppy parameter which will effect our base 2D sea_octave shape a bit.  This makes
+//        // the "waves within waves" have different looking shapes, not just frequency and offset
+//        choppy = mix(choppy,1.0,0.2);
+//    }
     return p.y - h;
 }
 
@@ -712,27 +834,20 @@ float map_detailed(vec3 p) {
 // eye: ray direction from camera position for this pixel
 // dist: distance from camera to point <p> on ocean surface
 vec3 getSeaColor(vec3 p, vec3 n, vec3 l, vec3 eye, vec3 dist) {  
-    // bteitler: Fresnel is an exponential that gets bigger when the angle between ocean
-    // surface normal and eye ray is smaller
-    float fresnel = 1.0 - max(dot(n,-eye),0.0);
-    fresnel = pow(fresnel,3.0) * 0.45;
-        
-    // bteitler: Bounce eye ray off ocean towards sky, and get the color of the sky
-    vec3 reflected = getSkyColor(reflect(eye,n))*0.99;    
-    
-    // bteitler: refraction effect based on angle between light surface normal
-    vec3 refracted = SEA_BASE.xyz + diffuse(n,l,80.0) * SEA_WATER_COLOR.xyz * 0.27; 
-    
-    // bteitler: blend the refracted color with the reflected color based on our fresnel term
-    vec3 color = mix(refracted,reflected,fresnel);
 
-    // bteitler: Apply a distance based attenuation factor which is stronger
-    // at peaks
-    float atten = max(1.0 - dot(dist,dist) * 0.001, 0.0);
-    color += SEA_WATER_COLOR.xyz * (p.y - SEA_HEIGHT) * 0.15 * atten;
+	float fresnel = clamp(1.0 - dot(n,-eye), 0.0, 1.0);
+    fresnel = min(pow(fresnel,3.0), fresnelF);
+        
+    vec3 reflected = getSkyColor(reflect(eye,n));    
+    vec3 refracted = SEA_BASE.xyz + diffuse(n,l,diffuseF) * SEA_WATER_COLOR.xyz * 0.12; 
     
-    // bteitler: Apply specular highlight
-    color += vec3(specular(n,l,eye,90.0))*distFactor;
+    vec3 color = mix(refracted,reflected,fresnel);
+    
+    float atten = max(1.0 - dot(dist,dist) * 0.001, 0.0);
+    color += SEA_WATER_COLOR.xyz * (p.y - SEA_HEIGHT) * 0.18 * atten;
+    
+    color += vec3(specular(n,l,eye,60.0)) ;
+    
     return color;
     
 }
@@ -747,23 +862,28 @@ vec3 getNormal(vec3 p, float eps) {
     // to return x, y, and z, but it only computes height relative to surface along Y axis.  I'm assuming
     // for simplicity and / or optimization reasons we approximate the gradient by the change in ocean
     // height for all axis.
-    vec3 n;
-    n.y = map_detailed(p); // bteitler: Detailed height relative to surface, temporarily here to save a variable?
-    n.x = map_detailed(vec3(p.x+eps,p.y,p.z)) - n.y; // bteitler approximate X gradient as change in height along X axis delta
-    n.z = map_detailed(vec3(p.x,p.y,p.z+eps)) - n.y; // bteitler approximate Z gradient as change in height along Z axis delta
-    // bteitler: Taking advantage of the fact that we know we won't have really steep waves, we expect
-    // the Y normal component to be fairly large always.  Sacrifices yet more accurately to avoid some calculation.
-    n.y = eps; 
-    return normalize(n);
-
+//    vec3 n;
+//    n.y = map_detailed(p); // bteitler: Detailed height relative to surface, temporarily here to save a variable?
+//    n.x = map_detailed(vec3(p.x+eps,p.y,p.z)) - n.y; // bteitler approximate X gradient as change in height along X axis delta
+//    n.z = map_detailed(vec3(p.x,p.y,p.z+eps)) - n.y; // bteitler approximate Z gradient as change in height along Z axis delta
+//    // bteitler: Taking advantage of the fact that we know we won't have really steep waves, we expect
+//    // the Y normal component to be fairly large always.  Sacrifices yet more accurately to avoid some calculation.
+//    n.y = eps; 
+//    return normalize(n);
+	
+	float h = (texture(noiseSampler, p.xy * uvscale).x * 2.0 - 1.0) * strength;
+	float hx = (texture(noiseSampler, (p.xy )  * uvscale + vec2(eps, 0)).x * 2.0 - 1.0) * strength;
+	float hy = (texture(noiseSampler, (p.xy )  * uvscale + vec2(0, eps)).x * 2.0 - 1.0) * strength;
+	vec3 n = normalize(vec3(h - hx, eps, h - hy)) ;
+	return n;
     // bteitler: A more naive and easy to understand version could look like this and
     // produces almost the same visuals and is a little more expensive.
-    // vec3 n;
-    // float h = map_detailed(p);
-    // n.y = map_detailed(vec3(p.x,p.y+eps,p.z)) - h;
-    // n.x = map_detailed(vec3(p.x+eps,p.y,p.z)) - h;
-    // n.z = map_detailed(vec3(p.x,p.y,p.z+eps)) - h;
-    // return normalize(n);
+//    vec3 n;
+//    float h = map_detailed(p);
+//    n.y = map_detailed(vec3(p.x,p.y+eps,p.z)) - h;
+//    n.x = map_detailed(vec3(p.x+eps,p.y,p.z)) - h;
+//    n.z = map_detailed(vec3(p.x,p.y,p.z+eps)) - h;
+//    return normalize(n);
 }
 
 
@@ -832,193 +952,196 @@ void vertex()
     vec3 cameraDir;
     vec3 oceanDir;
 	vec3 color_out;
+	vec2 uv1 = oceanPos(VERTEX + vec3(0.1, 0, 0), INV_PROJECTION_MATRIX, t, cameraDir, oceanDir, color_out); //vertex屏幕坐标
+	vec2 uv2 = oceanPos(VERTEX + vec3(0, 0.1, 0), INV_PROJECTION_MATRIX, t, cameraDir, oceanDir, color_out); //vertex屏幕坐标
 	vec2 uv = oceanPos(VERTEX, INV_PROJECTION_MATRIX, t, cameraDir, oceanDir, color_out); //vertex屏幕坐标
-
-	pointInOcean = t * cameraDir;
-//	if(t > 100000.0)
-//	{
-//		pointInOcean.y = pointInOcean.y + 1000.0;
-//	}
-
-//	float h = texture(noiseSampler, uv * scale).x;
-	float d = sqrt(oceanCameraPos.y * (2.0 * radius + oceanCameraPos.y));
-	vec2 uv1 = uv / d * scale;
-	float h = texture(noiseSampler3D, vec3(uv1 , (sin(TIME) + 1.0) * 0.5)).x * matu;
-	pointInOcean.y += h;
-	float freq = SEA_FREQ;
-    float amp = SEA_HEIGHT;
-    float choppy = SEA_CHOPPY;
-    uv.x *= 0.75;
-    
-    
-	vertex_v = VERTEX;
-
-	POSITION = (PROJECTION_MATRIX  * vec4(pointInOcean, 1.0));
-	POSITION = POSITION / POSITION.w;
 	
+	vec3 dir = normalize(oceanDir);
+	vec3 ori = vec3(oceanCameraPos.x, oceanCameraPos.y, oceanCameraPos.z);
+	vec3 p;
+	heightMapTracing(ori,dir,t, p);
+	vec3 dist = p - ori;
+//	vec3 n = getNormal(p, 
+////			length(dist)
+//             dot(dist,dist)   // bteitler: Think of this as inverse resolution, so far distances get bigger at an expnential rate
+//                * factor / VIEWPORT_SIZE.x // bteitler: Just a resolution constant.. could easily be tweaked to artistic content
+//           );
+	
+	float d = sqrt(oceanCameraPos.y * (2.0 * radius + oceanCameraPos.y));
+		float ratio = length(dist) / d;
+		float x = 2.0 / (1.0 + exp(-k1 * -k2 * ratio));
+//		ALPHA = 1.0 - tanh((disToOrigin ) / (d ) * disfactor);
+	float esp0 = 1.0 / (1.0 + exp(12.0 * x - 6.0) * 10.0);
+//	vec3 n = getNormal(p, esp * length(dist));
+//	NORMAL = n;
+//	float h = map_detailed(vec3(uv.x, 1, uv.y));
+	float h = (texture(noiseSampler, uv * uvscale).x ) * strength;
+	float hx = (texture(noiseSampler, (uv )  * uvscale + vec2(offset * length(dist), 0)).x ) * strength;
+	float hy = (texture(noiseSampler, (uv )  * uvscale + vec2(0, offset * length(dist))).x ) * strength;
+	vec3 n =normalize(vec3(h - hx, offset * length(dist), h - hy)) ;
+	pointInOcean = t * cameraDir;
+//	pointInOcean += (oceanToCamera * vec4(0, h, 0, 0.0)).xyz;
+	
+	vertex_v = VERTEX;
+	vec4 vv = inverse(WORLD_MATRIX) * inverse(INV_CAMERA_MATRIX) * vec4( pointInOcean, 1.0);
+	VERTEX =  vv.xyz;
+    
+    
+
+//	POSITION = (PROJECTION_MATRIX  * vec4(pointInOcean, 1.0));
+//	POSITION = POSITION / POSITION.w;
+	uv_v = uv;
+//	NORMAL = -n;
 	}
 }
 void fragment(){
-	
+	ALBEDO = texture(noiseSampler, uv_v * uvscale).xyz * SEA_BASE.xyz;
+	ALBEDO = SEA_BASE.xyz;
+//	ROUGHNESS = 0.1;
+//	METALLIC = 1.0;
 	float t;
     vec3 cameraDir;
     vec3 oceanDir;
 	vec3 color_out;
-	vec2 uv1 = oceanPos2(vertex_v, INV_PROJECTION_MATRIX, cameraToOcean, oceanCameraPos.y, t, cameraDir, oceanDir, color_out); //vertex屏幕坐标
-	vec3 highHitPos = t * oceanDir + vec3(0.0, oceanCameraPos.y, 0.0);
-    vec3 dir = normalize(oceanDir);
-	vec3 ori = vec3(oceanCameraPos.x, oceanCameraPos.y, oceanCameraPos.z);
-    
-    // tracing
-
-    // bteitler: ray-march to the ocean surface (which can be thought of as a randomly generated height map)
-    // and store in p
-    vec3 p = highHitPos;
-    heightMapTracing(ori,dir,t, p);
-
-    vec3 dist = p - ori; // bteitler: distance vector to ocean surface for this pixel's ray
-
-    // bteitler: Calculate the normal on the ocean surface where we intersected (p), using
-    // different "resolution" (in a sense) based on how far away the ray traveled.  Normals close to
-    // the camera should be calculated with high resolution, and normals far from the camera should be calculated with low resolution
-    // The reason to do this is that specular effects (or non linear normal based lighting effects) become fairly random at
-    // far distances and low resolutions and can cause unpleasant shimmering during motion.
-    vec3 n = getNormal(p, 
-             dot(dist,dist)   // bteitler: Think of this as inverse resolution, so far distances get bigger at an expnential rate
-                * 0.5 / VIEWPORT_SIZE.x // bteitler: Just a resolution constant.. could easily be tweaked to artistic content
-           );
-
-    // bteitler: direction of the infinitely far away directional light.  Changing this will change
-    // the sunlight direction.
-	vec3 lightDir = (cameraToOcean * vec4(sun_dir, 0.0)).xyz;
+	float bias = 0.01;
+	vec3 color = vec3(0);
+	vec3 lightDir = (inverse(oceanToWorld) * vec4(sun_dir, 0.0)).xyz;
     vec3 light = normalize(lightDir); 
-             
-    // CaliCoastReplay:  Get the sky and sea colors
-	vec3 skyColor = getSkyColor(dir);
-    vec3 seaColor = getSeaColor(p,n,light,dir,dist);
-    ALBEDO= seaColor;
-    //Sea/sky preprocessing
-    
-    //CaliCoastReplay:  A distance falloff for the sea color.   Drastically darkens the sea, 
-    //this will be reversed later based on day/night.
-    seaColor /= sqrt(sqrt(length(dist))) ;
-//	seaColor /= length(dist) * distFactor;
-    
-    
-    //CaliCoastReplay:  Day/night mode
-    bool night = true; 	 
-	seaColor *= seaColor * 8.5;
-        
-        //Turn down the sky 
-    	skyColor /= 1.69;
-//    if( isKeyPressed(KEY_SP) > 0.0 )    //night mode!
-//    {
-//        //Brighten the sea up again, but not too bright at night
-//    	seaColor *= seaColor * 8.5;
-//
-//        //Turn down the sky 
-//    	skyColor /= 1.69;
-//
-//        //Store that it's night mode for later HSV calcc
-//        night = true;
-//    }
-//    else  //day mode!
-//    {
-//        //Brighten the sea up again - bright and beautiful blue at day
-//    	seaColor *= sqrt(sqrt(seaColor)) * 4.0;
-//        skyColor *= 1.05;
-//        skyColor -= 0.03;
-//        night = false;
-//    }
+	if(AA)
+	{
+		for(float i = -bias; i <= bias; i += bias)
+		{
+			for(float j = -bias; j <= bias; j += bias)
+			{
+				vec3 pos = vertex_v * uvF + vec3(i, j, 0) / AAF;
+				vec2 uv1 = oceanPos2(pos, INV_PROJECTION_MATRIX, cameraToOcean, oceanCameraPos.y, t, cameraDir, oceanDir, color_out); //vertex屏幕坐标
+				vec3 highHitPos = t * oceanDir + vec3(oceanCameraPos.x, oceanCameraPos.y, oceanCameraPos.z);
+    			vec3 dir = normalize(oceanDir);
+				dir.z += length(SCREEN_UV) * 0.14;
+				vec3 ori = vec3(oceanCameraPos.x, oceanCameraPos.y, oceanCameraPos.z);
 
-    
-    //CaliCoastReplay:  A slight "constrasting" for the sky to match the more contrasted ocean
-    skyColor *= skyColor;
-    
-    
-    //CaliCoastReplay:  A rather hacky manipulation of the high-value regions in the image that seems
-    //to add a subtle charm and "sheen" and foamy effect to high value regions through subtle darkening,
-    //but it is hacky, and not physically modeled at all.  
-    vec3 seaHsv = rgb2hsv(seaColor);
-    if (seaHsv.z > .75 && length(dist) < 50.0)
-       seaHsv.z -= (0.9 - seaHsv.z) * 1.3;
-    seaColor = hsv2rgb(seaHsv);
-    
-    // bteitler: Mix (linear interpolate) a color calculated for the sky (based solely on ray direction) and a sea color 
-    // which contains a realistic lighting model.  This is basically doing a fog calculation: weighing more the sky color
-    // in the distance in an exponential manner.
-    
-    vec3 color = mix(
-        skyColor,
-        seaColor,
-    	pow(smoothstep(0.0,-0.05,dir.y), 0.3) // bteitler: Can be thought of as "fog" that gets thicker in the distance
-    );
-    color = seaColor;
-   
-    // Postprocessing
-    
-    // bteitler: Apply an overall image brightness factor as the final color for this pixel.  Can be
-    // tweaked artistically.
-//    ALBEDO = vec4(pow(color,vec3(0.75)), 1.0).xyz;
-	
-    
-    // CaliCoastReplay:  Adjust hue, saturation, and value adjustment for an even more processed look
-    // hsv.x is hue, hsv.y is saturation, and hsv.z is value
-//    vec3 hsv = rgb2hsv(ALBEDO.xyz);    
-	
-    //CaliCoastReplay: Increase saturation slightly
-//    hsv.y += 0.131;
-    //CaliCoastReplay:
-    //A pseudo-multiplicative adjustment of value, increasing intensity near 1 and decreasing it near
-    //0 to achieve a more contrasted, real-world look
-//    hsv.z *= sqrt(hsv.z) * 1.1; 
-    vec3 hsv = ALBEDO.xyz;
-    if (night)    
-    {
-    ///CaliCoastReplay:
-    //Slight value adjustment at night to turn down global intensity
-        hsv.z -= 0.045;
-        hsv*=0.8;
-        hsv.x += 0.12 + hsv.z/100.0;
-        //Highly increased saturation at night op, oddly.  Nights appear to be very colorful
-        //within their ranges.
-        hsv.y *= 2.87;
-    }
-    else
-    {
-      //CaliCoastReplay:
-        //Add green tinge to the high range
-      //Turn down intensity in day in a different way     
-        
-        hsv.z *= 0.9;
-        
-        //CaliCoastReplay:  Hue alteration 
-        hsv.x -= hsv.z/10.0;
-        hsv.x += 0.02 + hsv.z/50.0;
-        //Final brightening
-        hsv.z *= 1.01;
-        //This really "cinemafies" it for the day -
-        //puts the saturation on a squared, highly magnified footing.
-        //Worth looking into more as to exactly why.
-       // hsv.y *= 5.10 * hsv.y * sqrt(hsv.y);
-        hsv.y += 0.07;
-    }
-    
-    //CaliCoastReplay:    
-    //Replace the final color with the adjusted, translated HSV values
-//    ALBEDO.xyz = hsv2rgb(hsv);
+    		// tracing
+
+    		// bteitler: ray-march to the ocean surface (which can be thought of as a randomly generated height map)
+    		// and store in p
+    			vec3 p = highHitPos;
+//    			heightMapTracing(ori,dir,t, p);
+
+    			vec3 dist = p - ori; // bteitler: distance vector to ocean surface for this pixel's ray
+
+    		// bteitler: Calculate the normal on the ocean surface where we intersected (p), using
+    		// different "resolution" (in a sense) based on how far away the ray traveled.  Normals close to
+    		// the camera should be calculated with high resolution, and normals far from the camera should be calculated with low resolution
+    		// The reason to do this is that specular effects (or non linear normal based lighting effects) become fairly random at
+    		// far distances and low resolutions and can cause unpleasant shimmering during motion.
+    			vec3 n = getNormal(p, 
+					length(dist)
+//             dot(dist,dist)   // bteitler: Think of this as inverse resolution, so far distances get bigger at an expnential rate
+                	* factor / VIEWPORT_SIZE.x // bteitler: Just a resolution constant.. could easily be tweaked to artistic content
+           			);
+			//	n = getNormal(p, esp);
+
+			//	n = (INV_CAMERA_MATRIX * (oceanToWorld) * vec4(n, 0.0)).xyz;
+    		// bteitler: direction of the infinitely far away directional light.  Changing this will change
+    		// the sunlight direction.
+			
+
+				light = normalize(vec3(-1, 0, -1));
+    		// CaliCoastReplay:  Get the sky and sea colors
+				vec3 skyColor = getSkyColor(dir);
+    			vec3 seaColor = getSeaColor(p,n,light,dir,dist);
+
+				ALBEDO = mix(skyColor, seaColor, pow(smoothstep(0.0, mixF, dir.y),0.2));
+				color += pow(ALBEDO,vec3(albeoF));
+			}
+		}
+
+		ALBEDO = color / 9.0;
+	}
+	else
+	{
+		vec2 uv1 = oceanPos2(vertex_v * uvF, INV_PROJECTION_MATRIX, cameraToOcean, oceanCameraPos.y, t, cameraDir, oceanDir, color_out); //vertex屏幕坐标
+			vec3 highHitPos = t * oceanDir + vec3(oceanCameraPos.x, oceanCameraPos.y, oceanCameraPos.z);
+    		vec3 dir = normalize(oceanDir);
+//			dir.z += length(SCREEN_UV) * 0.14;
+			vec3 ori = vec3(oceanCameraPos.x, oceanCameraPos.y, oceanCameraPos.z);
+
+    		// tracing
+
+    		// bteitler: ray-march to the ocean surface (which can be thought of as a randomly generated height map)
+    		// and store in p
+    		vec3 p = highHitPos;
+//    		heightMapTracing(ori,dir,t, p);
+			vec4 c_p = oceanToWorld * vec4(p, 1.0);
+    		vec3 dist = p - ori; // bteitler: distance vector to ocean surface for this pixel's ray
+
+    		// bteitler: Calculate the normal on the ocean surface where we intersected (p), using
+    		// different "resolution" (in a sense) based on how far away the ray traveled.  Normals close to
+    		// the camera should be calculated with high resolution, and normals far from the camera should be calculated with low resolution
+    		// The reason to do this is that specular effects (or non linear normal based lighting effects) become fairly random at
+    		// far distances and low resolutions and can cause unpleasant shimmering during motion.
+//    		vec3 n = getNormal(vec3(uv1, 1.0), 
+//				length(dist) * factor
+////             dot(dist,dist)   // bteitler: Think of this as inverse resolution, so far distances get bigger at an expnential rate
+//                / VIEWPORT_SIZE.x // bteitler: Just a resolution constant.. could easily be tweaked to artistic content
+//           );
+			//	n = getNormal(p, esp);
+			float h = (texture(noiseSampler, uv1 * uvscale).x) * strength;
+	float hx = (texture(noiseSampler, (uv1 )  * uvscale + vec2(offset , 0)).x) * strength;
+	float hy = (texture(noiseSampler, (uv1 )  * uvscale + vec2(0, offset)).x) * strength;
+	vec3 n =normalize(vec3(h - hx, offset * strengthN, h - hy)) ;
+			//	n = (INV_CAMERA_MATRIX * (oceanToWorld) * vec4(n, 0.0)).xyz;
+    		// bteitler: direction of the infinitely far away directional light.  Changing this will change
+    		// the sunlight direction.
+//			vec3 lightDir = (inverse(oceanToWorld) * vec4(sun_dir, 0.0)).xyz;
+//    		vec3 light = normalize(lightDir); 
+
+    		// CaliCoastReplay:  Get the sky and sea colors
+			p.y += h;
+			vec3 skyColor = getSkyColor(dir);
+    		vec3 seaColor = getSeaColor(p,n,light,dir,dist);
+
+			ALBEDO = mix(skyColor, seaColor, pow(smoothstep(0.0, mixF, dir.y),0.2));
+			ALBEDO += pow(ALBEDO,vec3(albeoF));
+			float depth = texture(DEPTH_TEXTURE, SCREEN_UV).x;
+	    		//float depth = texture(DEPTH_TEXTURE, SCREEN_UV).x;
+	    	vec3 ndc = vec3(SCREEN_UV, depth) * 2.0 - 1.0;
+	    	vec4 view = INV_PROJECTION_MATRIX * vec4(ndc, 1.0);
+//      	view.xyz /= view.w;
+	    	vec4 world = CAMERA_MATRIX * vec4(view);
+	    	vec3 piexlPos =  world.xyz / world.w + CAMERA_RELATIVE_POS.xyz;
+	    	float dis = length(piexlPos - CAMERA_RELATIVE_POS.xyz);
+			
+			NORMAL = n;
+			if(useNormal)
+			{
+				ALBEDO = n;
+			}
+			else
+			{
+				ALBEDO = seaColor;
+			}
+			if(dis < length(dist))
+			{
+				ALBEDO = vec3(1, 0, 0);
+				ALPHA = 0.5;
+			}
+//			if(length(piexlPos - c_p.xyz) < 100.0)
+//			{
+//				ALPHA = 0.5;
+//			}
+			view.xyz /= view.w;
+//            ALBEDO = vec3(length(view) / 100.0);
+//			ALBEDO = vec3(texture(noiseSampler, uv1 * uvscale).x + 0.1);
+			
+	}
+//	ALPHA = 0.5;
 	vec3 oceanCamera = vec3(0.0, oceanCameraPos.y, 0.0);
-			float d = sqrt(oceanCamera.y * (2.0 * radius + oceanCamera.y));
-		float ratio = t / d;
-		float x = 2.0 / (1.0 + exp(-k1 * -k2 * ratio));
-//		ALPHA = 1.0 - tanh((disToOrigin ) / (d ) * disfactor);
-		ALPHA = 1.0 - 1.0 / (1.0 + exp(12.0 * x - 6.0));
+	float d = sqrt(oceanCamera.y * (2.0 * radius + oceanCamera.y));
+	float ratio = t / d;
+	float x = 2.0 / (1.0 + exp(-k1 * -k2 * ratio));
 
-//	ALBEDO = texture(noiseSampler, uv1 / d * scale).xyz; 
-ALBEDO = vec3(0.5, 0.5, 0.5);
-    vec2 uv = uv1 / d * scale;
-//	ALBEDO = texture(noiseSampler3D, vec3(uv, (sin(TIME) + 1.0) * 0.5)).xyz;
-	NORMAL = normalize(texture(noiseSampler3D, vec3(uv, (sin(TIME) + 1.0) * 0.5)).xyz);
-//	ALPHA = 0.7;
+//	ALPHA = 1.0 - 1.0 / (1.0 + exp(12.0 * x - 6.0));
+
 }
 

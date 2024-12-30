@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=2]
+[gd_scene load_steps=18 format=2]
 
 [ext_resource path="res://proxy/Sky_Proxy.cs" type="Script" id=1]
 [ext_resource path="res://proxy/World_Proxy.cs" type="Script" id=2]
@@ -10,23 +10,44 @@
 [ext_resource path="res://assets/material/atmo.tres" type="Material" id=8]
 [ext_resource path="res://proxy/WeatherManager_Proxy.cs" type="Script" id=9]
 [ext_resource path="res://proxy/ImmedDraw_Proxy.cs" type="Script" id=10]
+[ext_resource path="res://assets/tscn/SplitScreenManager.tscn" type="PackedScene" id=11]
+[ext_resource path="res://default_env.tres" type="Environment" id=12]
+[ext_resource path="res://assets/images/earthland.png" type="Texture" id=13]
+[ext_resource path="res://src/Hawkeye.cs" type="Script" id=14]
+[ext_resource path="res://assets/shaders/hawkeye.shader" type="Shader" id=15]
 
 [sub_resource type="QuadMesh" id=1]
 size = Vector2( 2, 2 )
+
+[sub_resource type="ShaderMaterial" id=2]
+shader = ExtResource( 15 )
+shader_param/cameraPosition = Vector2( 45, 45 )
+shader_param/mapTexMinValue = Vector2( -180, -90 )
+shader_param/mapTexMaxValue = Vector2( 180, 90 )
+shader_param/mapTexShowMinValue = Vector2( -180, -90 )
+shader_param/mapTexShowMaxValue = Vector2( 180, 90 )
+shader_param/rectRange = Vector2( 20, 10 )
+shader_param/drawRect = true
+shader_param/mapTex = ExtResource( 13 )
 
 [node name="World" type="Spatial"]
 script = ExtResource( 2 )
 IsPyramidTileSetNeedCache = false
 Is3DTilesNeedCache = false
 
+[node name="SplitScreenManager" parent="." instance=ExtResource( 11 )]
+visible = false
+
 [node name="InsideEarth" type="MeshInstance" parent="."]
 layers = 524288
 script = ExtResource( 4 )
 
 [node name="Camera" type="Camera" parent="."]
+environment = ExtResource( 12 )
 script = ExtResource( 3 )
 
 [node name="FullScreenQuad" type="MeshInstance" parent="Camera"]
+visible = false
 layers = 131072
 mesh = SubResource( 1 )
 material/0 = null
@@ -34,10 +55,11 @@ script = ExtResource( 9 )
 WeatherShader = ExtResource( 8 )
 
 [node name="Sun" type="DirectionalLight" parent="."]
-shadow_enabled = true
-directional_shadow_max_distance = 8192.0
+light_energy = 0.7
+light_indirect_energy = 0.5
+light_specular = 0.953
+directional_shadow_max_distance = 1000.0
 script = ExtResource( 6 )
-UseAutoShadowDistance = true
 
 [node name="Sky" type="MeshInstance" parent="."]
 layers = 524288
@@ -55,3 +77,15 @@ script = ExtResource( 7 )
 script = ExtResource( 10 )
 
 [node name="MeshLayer" type="Node" parent="."]
+
+[node name="ColorRect" type="ColorRect" parent="."]
+visible = false
+material = SubResource( 2 )
+margin_left = 764.0
+margin_top = 420.0
+margin_right = 1023.0
+margin_bottom = 599.0
+script = ExtResource( 14 )
+__meta__ = {
+"_edit_use_anchors_": false
+}

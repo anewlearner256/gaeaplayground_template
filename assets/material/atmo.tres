@@ -1,8 +1,8 @@
 [gd_resource type="ShaderMaterial" load_steps=5 format=2]
 
 [ext_resource path="res://assets/shaders/weatherAndAtmo.shader" type="Shader" id=1]
-[ext_resource path="res://assets/images/irradiance.png" type="Texture" id=2]
-[ext_resource path="res://assets/images/transmittance.png" type="Texture" id=3]
+[ext_resource path="res://assets/images/transmittance.png" type="Texture" id=2]
+[ext_resource path="res://assets/images/irradiance.png" type="Texture" id=3]
 [ext_resource path="res://assets/images/sunglare.png" type="Texture" id=4]
 
 [resource]
@@ -15,7 +15,9 @@ shader_param/rainy_color = Color( 0.9411, 0.9764, 1, 1 )
 shader_param/wind_direction = -0.5
 shader_param/speed = 10.0
 shader_param/rainy_count = 50
+shader_param/rainy_strength = 10.0
 shader_param/snowy_count = 50
+shader_param/snowy_size = 0.3
 shader_param/flash_frequency = 8.0
 shader_param/flash_strength = 2.0
 shader_param/need_atmosphere = true
@@ -24,19 +26,19 @@ shader_param/reflectivity = 1.0
 shader_param/sun_dir = Vector3( 0, 0, 1 )
 shader_param/height = 8848.0
 shader_param/absorption_factor = Plane( 1, 1, 1, 1 )
-shader_param/SUN_INTENSITY = 60.0
+shader_param/SUN_INTENSITY = 15.0
 shader_param/mixFactor = 0.5
 shader_param/mixFactor2 = 0.5
 shader_param/scaleFactor = 0.5
 shader_param/maxDistance = 1e+06
-shader_param/maxError = 10000.0
+shader_param/maxError = 600.0
 shader_param/ANALYTIC_TRANSMITTANCE = true
 shader_param/Rg = 6.37814e+06
 shader_param/Rt = 6.42e+06
 shader_param/RL = 6.421e+06
-shader_param/alpha = 0.176
+shader_param/alpha = 0.5
 shader_param/alpha2 = 0.5
 shader_param/hdrExposure = 0.4
-shader_param/transmittanceSampler = ExtResource( 3 )
-shader_param/skyIrradianceSampler = ExtResource( 2 )
+shader_param/transmittanceSampler = ExtResource( 2 )
+shader_param/skyIrradianceSampler = ExtResource( 3 )
 shader_param/glareSampler = ExtResource( 4 )

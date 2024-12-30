@@ -1,9 +1,9 @@
 shader_type spatial;
 // render_mode cull_front;
-render_mode blend_mix,depth_draw_always,cull_back;
+render_mode blend_mix,depth_draw_always,cull_disabled;
 uniform vec2 Origin;
 uniform vec2 Span;
-
+uniform bool visible = true;
 uniform bool useRollerBlind = false;
 uniform bool splitScreenEnable = false;
 uniform vec2 splitline;
@@ -14,6 +14,7 @@ uniform int splitDirection4;
 uniform int splitDirection5;
 uniform int splitDirection6;
 uniform int splitDirection7;
+uniform int viewportDefault;
 uniform int viewport11;
 uniform int viewport12;
 uniform int viewport13;
@@ -54,7 +55,20 @@ uniform int viewport74;
 //全局透明
 uniform float transparency;
 //地形夸张
-uniform float verticalExaggeration = 1.0;
+uniform float verticalExaggeration = 1.0; //地形贴花的高度夸张
+uniform float verticalExaggerationDown = 1.0;
+uniform float terrainExaggerationDividingLine = 0.0;
+uniform float verticalExaggerationUp = 3.0;
+//地形贴花夸张
+uniform float TerrainDecalVerticalExaggeration = 1.0;
+//推演采用的类型，1 交集 2 并集
+uniform int MathSetType = 1;
+
+// 是否叠加两个地形， 0 覆盖	1 叠加
+uniform int TerrainMergeType = 0;
+
+// 地形贴花渲染方式, 1 顶点渲染，2 片元渲染
+uniform int RenderType = 2;
 
 uniform int pixelToHeightMode = 0;
 
@@ -236,8 +250,32 @@ float pixelToHeight(float pixel, vec2 valueMaxMin)
 		return pixel * 255.0;
 	}
 }
+
+float heightFromColor(vec4 c){
+	c *= 255.0;
+	return float( (int(c.r) ) | (int(c.g) << 8) | (int(c.b) << 16) | int(c.a) << 24 );
+}
+
+varying float terrain_height;
+
+float terrainExaggeration(float elv,float threshold,float up,float down)
+{
+	if(elv > threshold)
+	{
+		return elv * up;
+	}
+	else
+	{
+		return elv * down;
+	}
+}
+
 void vertex()
 {	
+	if(!visible)
+	{
+		return;
+	}
 	modelViewMatrix_inv = inverse(MODELVIEW_MATRIX);
 	float absoluteLon = (Origin.x + UV.x * Span.x); // 绝对经度
 	float absoluteLat = (Origin.y - UV.y * Span.y); // 绝对纬度
@@ -247,6 +285,27 @@ void vertex()
 	vec3 pos = VERTEX.xyz;
 	vec3 pos1 = VERTEX.xyz;
 	vec3 pos2 = VERTEX.xyz;
+	
+	terrain_height = -10.0;
+	float originHeight = heightFromColor(COLOR);
+	vec4 normal = inverse(WORLD_MATRIX) * vec4(NORMAL, 0.0);
+	float heightDifference = originHeight - terrainExaggerationDividingLine;
+	
+//	if(originHeight < horizontalElevation)
+	if(heightDifference <= 0.0)
+	{
+		VERTEX.xyz -= (originHeight * NORMAL.xyz);
+		VERTEX.xyz +=  terrainExaggerationDividingLine * NORMAL.xyz + heightDifference * NORMAL.xyz * verticalExaggerationDown;
+	}
+	else
+	{
+		VERTEX.xyz -= (originHeight * NORMAL.xyz);
+		VERTEX.xyz +=  terrainExaggerationDividingLine * NORMAL.xyz + heightDifference * NORMAL.xyz * verticalExaggerationUp;
+	}
+//	VERTEX.xyz -= (originHeight * NORMAL.xyz);
+//	VERTEX.xyz += originHeight * NORMAL.xyz * verticalExaggeration * (1.0 - (1.0 / (1.0 + exp(-(originHeight - horizontalElevation)))));
+	
+	
 	
 	if(HasTerrainMap1 == 1 && HasTerrainMap2 == 1 && TerrainMapInterpolationValue != -1.0)
 	{
@@ -312,6 +371,11 @@ void vertex()
 
 void fragment()
 {
+	if(!visible)
+	{
+		discard;
+		return;
+	}
 	ALBEDO = vec3(1,0,0);
 	float t1 = transparency1;
 	float t2 = transparency2;
@@ -354,7 +418,7 @@ void fragment()
 		}
 		else if(splitScreenEnable)
 		{
-			if(VIEWPORT_ID == viewport11 || VIEWPORT_ID == viewport12 || VIEWPORT_ID == viewport13 || VIEWPORT_ID == viewport14)
+			if(VIEWPORT_ID == viewport11 || VIEWPORT_ID == viewport12 || VIEWPORT_ID == viewport13 || VIEWPORT_ID == viewport14 || VIEWPORT_ID == viewportDefault)
 			{
 				diffuse = blendColor(texture(Img1, uv) * transparency1, diffuse);
 			}
@@ -394,7 +458,7 @@ void fragment()
 		}
 		else if(splitScreenEnable)
 		{
-			if(VIEWPORT_ID == viewport21 || VIEWPORT_ID == viewport22 || VIEWPORT_ID == viewport23 || VIEWPORT_ID == viewport24)
+			if(VIEWPORT_ID == viewport21 || VIEWPORT_ID == viewport22 || VIEWPORT_ID == viewport23 || VIEWPORT_ID == viewport24 || VIEWPORT_ID == viewportDefault)
 			{
 				diffuse = blendColor(texture(Img2, uv) * transparency1, diffuse);
 			}
@@ -426,7 +490,7 @@ void fragment()
 		}
 		else if(splitScreenEnable)
 		{
-			if(VIEWPORT_ID == viewport31 || VIEWPORT_ID == viewport32 || VIEWPORT_ID == viewport33 || VIEWPORT_ID == viewport34)
+			if(VIEWPORT_ID == viewport31 || VIEWPORT_ID == viewport32 || VIEWPORT_ID == viewport33 || VIEWPORT_ID == viewport34 || VIEWPORT_ID == viewportDefault)
 			{
 				diffuse = blendColor(texture(Img3, uv) * transparency1, diffuse);
 			}
@@ -458,7 +522,7 @@ void fragment()
 		}
 		else if(splitScreenEnable)
 		{
-			if(VIEWPORT_ID == viewport41 || VIEWPORT_ID == viewport42 || VIEWPORT_ID == viewport43 || VIEWPORT_ID == viewport44)
+			if(VIEWPORT_ID == viewport41 || VIEWPORT_ID == viewport42 || VIEWPORT_ID == viewport43 || VIEWPORT_ID == viewport44 || VIEWPORT_ID == viewportDefault)
 			{
 				diffuse = blendColor(texture(Img4, uv) * transparency1, diffuse);
 			}
@@ -490,7 +554,7 @@ void fragment()
 		}
 		else if(splitScreenEnable)
 		{
-			if(VIEWPORT_ID == viewport51 || VIEWPORT_ID == viewport52 || VIEWPORT_ID == viewport53 || VIEWPORT_ID == viewport54)
+			if(VIEWPORT_ID == viewport51 || VIEWPORT_ID == viewport52 || VIEWPORT_ID == viewport53 || VIEWPORT_ID == viewport54 || VIEWPORT_ID == viewportDefault)
 			{
 				diffuse = blendColor(texture(Img5, uv) * transparency1, diffuse);
 			}
@@ -522,7 +586,7 @@ void fragment()
 		}
 		else if(splitScreenEnable)
 		{
-			if(VIEWPORT_ID == viewport61 || VIEWPORT_ID == viewport62 || VIEWPORT_ID == viewport63 || VIEWPORT_ID == viewport64)
+			if(VIEWPORT_ID == viewport61 || VIEWPORT_ID == viewport62 || VIEWPORT_ID == viewport63 || VIEWPORT_ID == viewport64 || VIEWPORT_ID == viewportDefault)
 			{
 				diffuse = blendColor(texture(Img6, uv) * transparency1, diffuse);
 			}
@@ -554,7 +618,7 @@ void fragment()
 		}
 		else if(splitScreenEnable)
 		{
-			if(VIEWPORT_ID == viewport71 || VIEWPORT_ID == viewport72 || VIEWPORT_ID == viewport73 || VIEWPORT_ID == viewport74)
+			if(VIEWPORT_ID == viewport71 || VIEWPORT_ID == viewport72 || VIEWPORT_ID == viewport73 || VIEWPORT_ID == viewport74 || VIEWPORT_ID == viewportDefault)
 			{
 				diffuse = blendColor(texture(Img7, uv) * transparency1, diffuse);
 			}
@@ -720,12 +784,12 @@ void fragment()
 	SPECULAR = 0.1;
 	
 	if( HasImg7 != 1 && 
-	HasImg6 != 1 && 
-	HasImg5 != 1 && 
-	HasImg4 != 1 && 
-	HasImg3 != 1 && 
-	HasImg2 != 1 && 
-	HasImg1 != 1){
-		discard;
+		HasImg6 != 1 && 
+		HasImg5 != 1 && 
+		HasImg4 != 1 && 
+		HasImg3 != 1 && 
+		HasImg2 != 1 && 
+		HasImg1 != 1){
+			discard;
 	}
 }

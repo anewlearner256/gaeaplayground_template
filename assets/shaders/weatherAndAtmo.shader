@@ -12,7 +12,9 @@ uniform vec4 rainy_color : hint_color = vec4(0.9411,0.9764,1.0,1.0);
 uniform float wind_direction : hint_range(-1.5,1.5,0.1) = -0.5; // 风向
 uniform float speed : hint_range(0,100,2) = 10; // 速度
 uniform int rainy_count : hint_range(0,500,5) = 50; // 粒子数量
+uniform float rainy_strength = 10; // 粒子数量
 uniform int snowy_count : hint_range(0,500,5) = 50; // 粒子数量
+uniform float snowy_size : hint_range(0,1,0.02) = 0.3; // 速度
 uniform float flash_frequency : hint_range(4.0,12.0,0.5) = 8; // 闪电频率
 uniform float flash_strength :  hint_range(0.5,4.0,0.5) = 2; // 闪电亮度
 
@@ -617,7 +619,7 @@ vec3 Snowy(vec4 fragCoord,vec2 iResolution){
 		vec2 s = abs(mod(q,1.)-.5+.9*r.xy-.45);
 		s += .01*abs(2.*fract(10.*q.yx)-1.); 
 		float d = .6*max(s.x-s.y,s.x+s.y)+max(s.x,s.y)-.01;
-		float edge = .005+.05*min(.5*abs(fi-5.-dof),1.) * 3.; // 调整粒子大下
+		float edge = snowy_size+.05*min(.5*abs(fi-5.-dof),1.) * 3.; // 调整粒子大下
 		col_ += vec3(smoothstep(edge,-edge,d * 7.0)*(r.x/(1.+.02*fi* 0.1))) * 0.5;
 	}
 	return col_;
@@ -647,7 +649,7 @@ vec3 Rainy(vec4 fragCoord,vec2 iResolution){
 			float f = pow(dis, .45)+.25;
 
 			vec2 st =  f * (q * vec2(2.5, .17)+vec2(-iTime*.1+q.y*wind_direction, iTime*.16)); // 可以设置方向
-			f = (texture(iChannel3, st * .5, -99.0).x + texture(iChannel3, st*.284, -99.0).y);
+			f = (texture(iChannel3, st * 0.255, -199.0).x + texture(iChannel3, st* 0.154, 199.0).y);
 			f = clamp(pow(abs(f)*.75, 10.0) * speed, 0.00, q.y*.4+.05);
 
 			vec3 bri = vec3(.25) * float(rainy_count) / 100.;
@@ -774,7 +776,7 @@ void fragment() {
 		col += Snowy(fragCoord,iResolution);
 	}
 	if(rainy) {
-		col += Rainy(fragCoord,iResolution) * rainy_color.rgb;
+		col += Rainy(fragCoord,iResolution) * rainy_color.rgb * rainy_strength;
 	}
 	if(need_atmosphere)
 	{

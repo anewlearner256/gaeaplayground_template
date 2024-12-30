@@ -23,6 +23,10 @@ varying float cnt;
 varying float Color;
 varying float alpha_show; 
 
+uniform bool userollerblind = false;
+uniform vec2 splitline;
+uniform int splitdirection;
+
 vec3 XformInv(vec3 p_pos,mat4 camera_matrix){	
 	vec3 v=p_pos-vec3(camera_matrix[3][0],camera_matrix[3][1],camera_matrix[3][2]);
 
@@ -241,13 +245,31 @@ void fragment() {
 //		ALBEDO *= COLOR.xyz;
 	}
 	
-	if(Color == 1.0) {
+	if(Color == 1.0 && check_test == 1) {
 		ALBEDO *= hoverColor.rgb;
 	}
 	else if(Color == 2.0 && check_test == 1)
 	{
 		ALBEDO *= hitColor.rgb;
 	}
+	if(userollerblind)
+		{
+			if(splitdirection==1)
+			{
+				if(SCREEN_UV.x > splitline.x )
+				{
+					discard;
+				}
+			}
+			else if(splitdirection==2)
+			{
+				if(SCREEN_UV.x < splitline.x )
+				{
+					discard;
+				}
+			}
+		}
+	
 //	float d = DEPTH;
 	
 //	DEPTH += 0.001;

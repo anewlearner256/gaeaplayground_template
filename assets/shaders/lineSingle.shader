@@ -6,13 +6,18 @@ uniform int lineStyle = 0;
 uniform vec4 lineColor;
 
 uniform sampler2D lineTex;
+uniform sampler2D colorBarTexture : hint_black_albedo;
 uniform bool hasLineTex = false;
 uniform bool isFlowing = false;
 uniform float flowVelocity = 1.0;
 uniform float repeatTimes = 10;
 uniform float emissionpower = 0.0;
+uniform bool ISSRGB = true;
 varying vec3 color;
 
+uniform bool userollerblind = false;
+uniform vec2 splitline;
+uniform int splitdirection;
 
 vec2 ComputeOffset(vec2 prevP, vec2 currentP, vec2 nextP, vec2 flag, vec4 color0, out bool f){ //Calculate offset direction based on two adjacent points
 	f = false;
@@ -160,7 +165,6 @@ void vertex(){
 ////        COLOR = vec4(0, 0, 1, 1);
 //		color = vec3(1, 0, 0);
 //	} 
-	
 	bool f;
 	vec2 offset = ComputeOffset(prevP.xy, currentP.xy, nextP.xy, UV2, COLOR,f);
     currentP = currentP + lineWidth * vec4(offset,0,0);
@@ -185,12 +189,19 @@ void fragment(){
 		vec4 c = texture(lineTex, vec2(mod(uv_x, 1.0), UV.y));
 		ALBEDO = c.xyz * lineColor.rgb;
 		ALPHA =  c.a;
-		EMISSION = ALBEDO * lineColor.rgb * emissionpower;
+		EMISSION = ALBEDO * emissionpower;
 	}
 	else
 	{
-		ALBEDO = lineColor.rgb;
-		ALPHA = lineColor.a;
+		if(COLOR.a == 0.){  // 分级渲染使用
+			vec4 groupColor = texelFetch(colorBarTexture,ivec2(int(round(COLOR.r  * float(textureSize(colorBarTexture,0).x))),0),0);
+			ALBEDO = groupColor.rgb;
+			ALPHA = groupColor.a;
+		}
+		else {
+			ALBEDO = lineColor.rgb;
+			ALPHA = lineColor.a;
+		}
 		EMISSION = ALBEDO * emissionpower;
 	}
 	if(lineStyle == 1)
@@ -201,7 +212,25 @@ void fragment(){
 			discard;
 		}
 	}
-	ALBEDO = mix(pow((ALBEDO+ vec3(0.055)) * (1.0 / (1.0 + 0.055)),vec3(2.4)),ALBEDO * (1.0 / 12.92),lessThan(ALBEDO,vec3(0.04045)));
+	if(ISSRGB) ALBEDO = mix(pow((ALBEDO+ vec3(0.055)) * (1.0 / (1.0 + 0.055)),vec3(2.4)),ALBEDO * (1.0 / 12.92),lessThan(ALBEDO,vec3(0.04045)));
+
+	if(userollerblind)
+		{
+			if(splitdirection==1)
+			{
+				if(SCREEN_UV.x > splitline.x )
+				{
+					discard;
+				}
+			}
+			else if(splitdirection==2)
+			{
+				if(SCREEN_UV.x < splitline.x )
+				{
+					discard;
+				}
+			}
+		}
 }
 
 

@@ -68,14 +68,15 @@ void fragment() {
 //	{
 //		ALBEDO = vec3(1, 0, 0);
 //	}
-	vec3 color = texture(texture_albedo, uv).xyz ;
-	if(color == vec3(1, 1, 1))
+	vec4 color = texture(texture_albedo, uv) ;
+	if(color.xyz == invalid_color)
 	{
 		discard;
 	}
 	else
 	{
-		ALBEDO = color;
+		ALBEDO = color.xyz;
 	}
+	ALPHA = color.a;
 	
 }

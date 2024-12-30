@@ -6,13 +6,18 @@ uniform int lineStyle = 0;
 uniform vec4 lineColor;
 
 uniform sampler2D lineTex;
+uniform sampler2D colorBarTexture : hint_black_albedo;
 uniform bool hasLineTex = false;
 uniform bool isFlowing = false;
 uniform float flowVelocity = 1.0;
 uniform float repeatTimes = 10;
 uniform float emissionpower = 1.0;
+uniform bool ISSRGB = true;
 varying vec3 color;
 
+uniform bool userollerblind = false;
+uniform vec2 splitline;
+uniform int splitdirection;
 
 vec2 ComputeOffset(vec2 prevP, vec2 currentP, vec2 nextP, vec2 flag, vec4 color0, out bool f){ //Calculate offset direction based on two adjacent points
 	f = false;
@@ -193,8 +198,15 @@ void fragment(){
 	}
 	else
 	{
-		ALBEDO = lineColor.rgb;
-		ALPHA = lineColor.a;
+		if(COLOR.a == 0.){  // 分级渲染使用
+			vec4 groupColor = texelFetch(colorBarTexture,ivec2(int(round(COLOR.r  * float(textureSize(colorBarTexture,0).x))),0),0);
+			ALBEDO = groupColor.rgb;
+			ALPHA = groupColor.a;
+		}
+		else {
+			ALBEDO = lineColor.rgb;
+			ALPHA = lineColor.a;	
+		}
 		EMISSION = ALBEDO * emissionpower;
 	}
 	//EMISSION = vec3(0, 1, 0);
@@ -205,7 +217,7 @@ void fragment(){
 //			discard;
 //		}
 //	}
-	ALBEDO = mix(pow((ALBEDO+ vec3(0.055)) * (1.0 / (1.0 + 0.055)),vec3(2.4)),ALBEDO * (1.0 / 12.92),lessThan(ALBEDO,vec3(0.04045)));
+	if(ISSRGB) ALBEDO = mix(pow((ALBEDO+ vec3(0.055)) * (1.0 / (1.0 + 0.055)),vec3(2.4)),ALBEDO * (1.0 / 12.92),lessThan(ALBEDO,vec3(0.04045)));
 	if(lineStyle == 1)
 	{
 		float d = 1.0;
@@ -234,6 +246,23 @@ void fragment(){
 //	{
 //		ALBEDO = vec3(0, 0, 1);
 //	}
+if(userollerblind)
+		{
+			if(splitdirection==1)
+			{
+				if(SCREEN_UV.x > splitline.x )
+				{
+					discard;
+				}
+			}
+			else if(splitdirection==2)
+			{
+				if(SCREEN_UV.x < splitline.x )
+				{
+					discard;
+				}
+			}
+		}
 }
 
 void light()

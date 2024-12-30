@@ -2,21 +2,19 @@
 
 importer="texture"
 type="StreamTexture"
-path.s3tc="res://.import/围挡.jpg-9f2e63063e6d4e7c69b12a841e3b9c7d.s3tc.stex"
-path.etc2="res://.import/围挡.jpg-9f2e63063e6d4e7c69b12a841e3b9c7d.etc2.stex"
+path="res://.import/围挡.jpg-9f2e63063e6d4e7c69b12a841e3b9c7d.stex"
 metadata={
-"imported_formats": [ "s3tc", "etc2" ],
-"vram_texture": true
+"vram_texture": false
 }
 
 [deps]
 
 source_file="res://assets/material/围挡.jpg"
-dest_files=[ "res://.import/围挡.jpg-9f2e63063e6d4e7c69b12a841e3b9c7d.s3tc.stex", "res://.import/围挡.jpg-9f2e63063e6d4e7c69b12a841e3b9c7d.etc2.stex" ]
+dest_files=[ "res://.import/围挡.jpg-9f2e63063e6d4e7c69b12a841e3b9c7d.stex" ]
 
 [params]
 
-compress/mode=2
+compress/mode=3
 compress/lossy_quality=0.7
 compress/hdr_mode=0
 compress/bptc_ldr=0

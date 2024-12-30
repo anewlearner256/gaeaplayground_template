@@ -47,8 +47,8 @@ vec3 Xform(vec3 v, vec3 axis, float phi)
 
 void vertex()
 {
-	vec3 v1 = vec3(INSTANCE_CUSTOM.r, 0.0, INSTANCE_CUSTOM.g);
-	vec3 v2 = vec3(INSTANCE_CUSTOM.b, 0.0, INSTANCE_CUSTOM.a);
+	vec3 v1 = vec3(INSTANCE_CUSTOM.x, 0.0, INSTANCE_CUSTOM.y);
+	vec3 v2 = vec3(INSTANCE_CUSTOM.z, 0.0, INSTANCE_CUSTOM.w);
 	float VlenA = length(v1);
 	float VlenB = length(v2);
 	float Vlen = VlenB - VlenA;
@@ -92,9 +92,9 @@ void vertex()
 	else if(phi0 > PI && phi2 > phi)
 		 pos = Xform(VERTEX , vec3(0.0, -1.0, 0.0), phi - (2.0 * PI - phi0) * timer);
     else if(phi0 < -PI && phi2 < phi)
-	    pos = Xform(VERTEX , vec3(0.0, -1.0, 0.0), phi + (phi0 + 2.0 * PI) * timer);//(phi2 - phi)
+	    pos = Xform(VERTEX , vec3(0.0, -1.0, 0.0), phi + (phi0 + 2.0 * PI) * timer);
     else if(phi0 > -PI && phi2 < phi)
-	    pos = Xform(VERTEX , vec3(0.0, -1.0, 0.0), phi + phi0 * timer);//(phi2 - phi)
+	    pos = Xform(VERTEX , vec3(0.0, -1.0, 0.0), phi + phi0 * timer);
 	VERTEX = (vec4(pos, 1.0) * (minScale + value1 * (maxScale - minScale)) * unitScale).xyz;
 }
 

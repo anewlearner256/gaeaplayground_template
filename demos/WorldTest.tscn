@@ -6,22 +6,6 @@
 [node name="World" instance=ExtResource( 1 )]
 script = ExtResource( 2 )
 
-[node name="InsideEarth" parent="." index="0"]
-layers = 524288
-
-[node name="Sun" parent="." index="2"]
-light_energy = 2.0
-shadow_enabled = true
-shadow_bias = 10.0
-directional_shadow_blend_splits = true
-UseAutoShadowDistance = true
-
-[node name="Sky" parent="." index="3"]
-layers = 524288
-
-[node name="Cloud" parent="." index="4"]
-layers = 524288
-
 [node name="Button" type="Button" parent="." index="6"]
 margin_right = 12.0
 margin_bottom = 23.0
@@ -30,4 +14,26 @@ __meta__ = {
 "_edit_use_anchors_": false
 }
 
-[connection signal="button_down" from="Button" to="." method="_on_Button_button_down"]
+[node name="Button2" type="Button" parent="." index="9"]
+margin_left = 67.0
+margin_top = 1.0
+margin_right = 111.0
+margin_bottom = 24.0
+text = "卷帘"
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="Button3" type="Button" parent="." index="10"]
+margin_left = 129.0
+margin_top = 1.0
+margin_right = 173.0
+margin_bottom = 24.0
+text = "卷帘"
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[connection signal="button_down" from="Button" to="." method="Button4"]
+[connection signal="button_down" from="Button2" to="." method="Button5"]
+[connection signal="button_down" from="Button3" to="." method="decal2"]

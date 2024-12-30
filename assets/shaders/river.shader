@@ -52,7 +52,7 @@ uniform float foam_steepness : hint_range(0.0, 8.0) = 2.0;
 uniform float foam_smoothness : hint_range(0.0, 1.0) = 0.3;
 
 // Internal uniforms - DO NOT CUSTOMIZE THESE
-uniform float i_lod0_distance : hint_range(0.0, 200.0) = 50.0;
+uniform float i_lod0_distance : hint_range(0.0, 20000.0) = 50.0;
 uniform sampler2D i_texture_foam_noise : hint_white;
 uniform sampler2D i_flowmap : hint_normal;
 uniform sampler2D i_distmap : hint_white;
@@ -250,7 +250,7 @@ void fragment() {
 		alb_t = ease(alb_t, albedo_depth_curve);
 	}
 	
-	mat4 albedo_color_srgb = gradient_lin2srgb(color_deep,color_shallow);
+	mat4 albedo_color_srgb = gradient_lin2srgb(color_shallow, color_deep);
 	vec3 albedo_color_near = vec3(albedo_color_srgb[0].x, albedo_color_srgb[0].y, albedo_color_srgb[0].z);
 	vec3 albedo_color_far = vec3(albedo_color_srgb[1].x, albedo_color_srgb[1].y, albedo_color_srgb[1].z);
 	vec3 alb_mix = mix(albedo_color_near.rgb, albedo_color_far.rgb, alb_t);

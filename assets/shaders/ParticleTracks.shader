@@ -1,18 +1,19 @@
 shader_type spatial;
 uniform float height_Scale = 1000;
 uniform float width_Scale = 500;
-uniform vec3 symbolColor = vec3(0.0,1.0,0.0);
+uniform vec3 symbolColor = vec3(1.0,1.0,1.0);
 uniform bool isLevelColor = false;
-uniform float emissionPower = 10.0;//亮度
+uniform float emissionPower = 1.0;//亮度
 uniform highp sampler3D texture_albedo : hint_albedo;//色带
 uniform highp sampler3D texture_albedo2 : hint_albedo;//渐变
-uniform float maximum;//最大值
-uniform float minimum;//最小值
+uniform float maximum = 1.0;//长度最大值
+uniform float minimum = 0.5;//长度最小值
+uniform float maxScale = 1.0;//比例最大值
+uniform float minScale = 0.5;//比例最小值
 uniform float factor = 6.0;//透明因子
 varying vec3 pos;//旋转之后的点
 varying vec3 color1;
 varying float al;
-varying float phiOld;
 const float PI = 3.141592657;
 
 vec3 Xform(vec3 v, vec3 axis, float phi)
@@ -48,16 +49,16 @@ vec3 Xform(vec3 v, vec3 axis, float phi)
 
 void vertex()
 {
-	vec3 v1 = vec3(INSTANCE_CUSTOM.r, 0.0, INSTANCE_CUSTOM.g);
+	vec3 v1 = vec3(INSTANCE_CUSTOM.x, 0.0, INSTANCE_CUSTOM.y);
 	float Vlen = length(v1);
+	float value1 = (Vlen - minimum) / (maximum - minimum);
 
-if(isLevelColor)
-{   
-	 float value1 = (Vlen - minimum) / (maximum - minimum);
-	color1 = texture(texture_albedo, vec3(value1, 1.0, 1.0)).xyz;
-}
-else
-color1 = symbolColor;
+	if(isLevelColor)
+	{   
+		color1 = texture(texture_albedo, vec3(value1, 1.0, 1.0)).xyz;
+	}
+	else
+		color1 = symbolColor;
 
     float phi = atan(v1.x / v1.z);
     if (v1.x > 0.0 && v1.z > 0.0)
@@ -69,15 +70,19 @@ color1 = symbolColor;
         phi += PI;
     }
 
-    VERTEX.z = VERTEX.z * height_Scale * Vlen;
+    VERTEX.z = VERTEX.z * height_Scale * (minScale + value1 * (maxScale - minScale));
     VERTEX.x = VERTEX.x * width_Scale;
 	pos = Xform(VERTEX , vec3(0.0, -1.0, 0.0), phi);
     VERTEX.xyz = pos.xyz;
 	al = texture(texture_albedo2, vec3(UV.y, 1.0, 1.0)).a;
+    if(INSTANCE_CUSTOM.z < 1.0 && INSTANCE_CUSTOM.z > 0.0)
+    {
+        al *= INSTANCE_CUSTOM.z;
+    }
 }
 
 void fragment(){
-	ALPHA = al * al * al * al;
+	ALPHA = al * al;
 	ALBEDO = color1;
-	//EMISSION = vec3(1.0,1.0,1.0) * (emissionPower * ALPHA);
+	EMISSION = color1 * (emissionPower * ALPHA);
 }
